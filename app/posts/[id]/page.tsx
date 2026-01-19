@@ -108,7 +108,9 @@ export default function PostPage({
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-4">Loading...</h1>
+        <div className="card p-8 text-center">
+          <p className="text-gray-500">Loading post...</p>
+        </div>
       </div>
     );
   }
@@ -116,15 +118,21 @@ export default function PostPage({
   if (authChecked && !user) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-4">Post</h1>
-        <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
+        <div className="mb-8">
+          <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+            ← Back to Feed
+          </Link>
+        </div>
+        <div className="card p-8 text-center">
+          <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
           <p className="text-gray-600 mb-4">
-            Please log in to view this post and its comments.
+            Log in to view this post and its comments.
           </p>
-          <Link
-            href="/login"
-            className="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
+          <Link href="/login" className="btn-primary inline-block">
             Log In
           </Link>
         </div>
@@ -135,78 +143,105 @@ export default function PostPage({
   if (!post) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-4">Post not found</h1>
+        <div className="mb-8">
+          <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+            ← Back to Feed
+          </Link>
+        </div>
+        <div className="card p-8 text-center">
+          <p className="text-gray-500">Post not found</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div>
-      <article className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+      <div className="mb-6">
+        <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+          ← Back to Feed
+        </Link>
+      </div>
+
+      <article className="card p-6 mb-8">
+        <div className="flex items-center gap-3 mb-4">
+          <span className={`pill ${post.category === "idea" ? "pill-idea" : "pill-update"}`}>
             {post.category}
           </span>
-          <span className="text-xs text-gray-500">
-            by {post.users?.name ?? "Unknown"}
-          </span>
-          <span className="text-xs text-gray-400">
-            {new Date(post.created_at).toLocaleDateString()}
+          <span className="text-sm text-gray-400">
+            {post.users?.name ?? "Unknown"} · {new Date(post.created_at).toLocaleDateString()}
           </span>
         </div>
-        <h1 className="text-2xl font-bold mb-3">{post.title}</h1>
-        <p className="text-gray-700 whitespace-pre-wrap">{post.body}</p>
+        <h1 className="text-xl font-semibold text-gray-900 mb-4">{post.title}</h1>
+        <p className="text-gray-600 whitespace-pre-wrap leading-relaxed">{post.body}</p>
       </article>
 
       <section>
-        <h2 className="text-lg font-semibold mb-4">
-          Comments ({comments.length})
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Comments
+          <span className="ml-2 text-sm font-normal text-gray-400">
+            ({comments.length})
+          </span>
         </h2>
 
         {comments.length === 0 ? (
-          <p className="text-gray-500 mb-4">No comments yet.</p>
+          <div className="card p-6 mb-6 text-center">
+            <p className="text-gray-400 text-sm">No comments yet. Be the first to share your thoughts.</p>
+          </div>
         ) : (
-          <div className="space-y-3 mb-6">
+          <div className="card divide-y divide-gray-100 mb-6">
             {comments.map((comment) => (
-              <div
-                key={comment.id}
-                className="bg-gray-50 border border-gray-200 rounded p-3"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-medium">
+              <div key={comment.id} className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-7 h-7 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center">
+                    <span className="text-xs font-medium text-white">
+                      {(comment.users?.name ?? "U")[0].toUpperCase()}
+                    </span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">
                     {comment.users?.name ?? "Unknown"}
                   </span>
                   <span className="text-xs text-gray-400">
-                    {new Date(comment.created_at).toLocaleDateString()}
+                    · {new Date(comment.created_at).toLocaleDateString()}
                   </span>
                 </div>
-                <p className="text-gray-700 text-sm">{comment.body}</p>
+                <p className="text-sm text-gray-600 ml-9">{comment.body}</p>
               </div>
             ))}
           </div>
         )}
 
-        {user ? (
-          <form onSubmit={handleAddComment} className="space-y-3">
-            <textarea
-              value={commentBody}
-              onChange={(e) => setCommentBody(e.target.value)}
-              required
-              rows={3}
-              className="w-full border border-gray-300 rounded px-3 py-2"
-              placeholder="Write a comment..."
-            />
-            {error && <p className="text-red-600 text-sm">{error}</p>}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
-            >
-              {submitting ? "Posting..." : "Add Comment"}
-            </button>
-          </form>
-        ) : (
-          <p className="text-gray-500">Log in to add a comment.</p>
+        {user && (
+          <div className="card p-5">
+            <form onSubmit={handleAddComment} className="space-y-4">
+              <div>
+                <label htmlFor="comment" className="label">
+                  Add a comment
+                </label>
+                <textarea
+                  id="comment"
+                  value={commentBody}
+                  onChange={(e) => setCommentBody(e.target.value)}
+                  required
+                  rows={3}
+                  className="input-field resize-none"
+                  placeholder="Share your thoughts..."
+                />
+              </div>
+              {error && (
+                <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-100">
+                  {error}
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={submitting}
+                className="btn-primary"
+              >
+                {submitting ? "Posting..." : "Post Comment"}
+              </button>
+            </form>
+          </div>
         )}
       </section>
     </div>

@@ -53,13 +53,31 @@ export default function HomePage() {
     checkAuthAndFetchPosts();
   }, []);
 
+  const Header = () => (
+    <div className="mb-8">
+      <h1 className="section-header">Feed</h1>
+      <p className="section-subtitle">
+        Ideas and updates from the community
+      </p>
+    </div>
+  );
+
   const NormsBox = () => (
-    <div className="mb-6 p-3 bg-gray-50 border border-gray-100 rounded-lg text-sm text-gray-600">
-      <p className="font-medium text-gray-700 mb-1">Community Norms</p>
-      <ul className="list-disc list-inside space-y-0.5 text-xs">
-        <li>Be respectful and constructive in all interactions</li>
-        <li>Share genuine opportunities and insights</li>
-        <li>Keep conversations relevant to startups and collaboration</li>
+    <div className="card p-4 mb-8">
+      <p className="text-sm font-medium text-gray-700 mb-2">Community Guidelines</p>
+      <ul className="text-xs text-gray-500 space-y-1">
+        <li className="flex items-start gap-2">
+          <span className="text-indigo-400 mt-0.5">•</span>
+          Be respectful and constructive in all interactions
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-indigo-400 mt-0.5">•</span>
+          Share genuine opportunities and insights
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-indigo-400 mt-0.5">•</span>
+          Keep conversations relevant to startups
+        </li>
       </ul>
     </div>
   );
@@ -67,9 +85,11 @@ export default function HomePage() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-4">Feed</h1>
+        <Header />
         <NormsBox />
-        <p className="text-gray-600">Loading...</p>
+        <div className="card p-8 text-center">
+          <p className="text-gray-500">Loading posts...</p>
+        </div>
       </div>
     );
   }
@@ -77,16 +97,18 @@ export default function HomePage() {
   if (authChecked && !user) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-4">Feed</h1>
+        <Header />
         <NormsBox />
-        <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
+        <div className="card p-8 text-center">
+          <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
           <p className="text-gray-600 mb-4">
-            Please log in to view posts and join the community.
+            Log in to view posts and join the community.
           </p>
-          <Link
-            href="/login"
-            className="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
+          <Link href="/login" className="btn-primary inline-block">
             Log In
           </Link>
         </div>
@@ -97,17 +119,21 @@ export default function HomePage() {
   if (posts.length === 0) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-4">Feed</h1>
+        <Header />
         <NormsBox />
-        <p className="text-gray-600">No posts yet. Be the first to post!</p>
+        <div className="card p-8 text-center">
+          <p className="text-gray-500">No posts yet. Be the first to share!</p>
+          <Link href="/posts/new" className="btn-primary inline-block mt-4">
+            Create Post
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Feed</h1>
-
+      <Header />
       <NormsBox />
 
       <div className="space-y-4">
@@ -115,21 +141,23 @@ export default function HomePage() {
           <Link
             key={post.id}
             href={`/posts/${post.id}`}
-            className="block border border-gray-200 rounded-lg p-4 bg-white hover:shadow-md transition-shadow"
+            className="card card-hover block p-5"
           >
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+            <div className="flex items-center gap-3 mb-3">
+              <span className={`pill ${post.category === "idea" ? "pill-idea" : "pill-update"}`}>
                 {post.category}
               </span>
-              <span className="text-xs text-gray-500">
-                by {post.users?.name ?? "Unknown"}
+              <span className="text-xs text-gray-400">
+                {post.users?.name ?? "Unknown"} · {new Date(post.created_at).toLocaleDateString()}
               </span>
             </div>
-            <h2 className="text-lg font-semibold mb-1">{post.title}</h2>
-            <p className="text-gray-600 text-sm line-clamp-2">{post.body}</p>
-            <p className="text-xs text-gray-400 mt-2">
-              {new Date(post.created_at).toLocaleDateString()}
-            </p>
+            <h2 className="text-base font-semibold text-gray-900 mb-1.5">
+              {post.title}
+            </h2>
+            <p className="text-sm text-gray-500 line-clamp-2">{post.body}</p>
+            <div className="mt-3 text-xs font-medium text-indigo-600">
+              View post →
+            </div>
           </Link>
         ))}
       </div>
