@@ -25,43 +25,41 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session on initial load
-    supabase.auth
-      .getUser()
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Auth error:", error.message);
-          // Clear any stale session on auth error
-          supabase.auth.signOut();
-          setLoading(false);
-          return;
-        }
-        const currentUser = data?.user ?? null;
-        if (currentUser) {
-          setUser(currentUser);
-          // Don't redirect - let user see they're logged in and optionally sign out
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to check auth:", err);
-        setLoading(false);
-      });
+    let mounted = true;
 
-    // Listen for auth state changes - only redirect on actual sign-in
+    // Check for existing session on initial load
+    supabase.auth.getUser().then(({ data, error }) => {
+      if (!mounted) return;
+
+      // "Auth session missing!" is expected when logged out - not an error
+      // Only the presence of data.user matters
+      const currentUser = data?.user ?? null;
+      if (currentUser) {
+        setUser(currentUser);
+      }
+      setLoading(false);
+    });
+
+    // Listen for auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      // Only redirect when user actually signs in, not on initial session
+
+      // Only redirect and upsert when user actually signs in
       if (event === "SIGNED_IN" && currentUser) {
         upsertUser(currentUser);
         router.push("/");
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [router]);
 
   const handleSignIn = async (e: React.FormEvent) => {
