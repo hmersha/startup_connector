@@ -1,16 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
+const TEMPLATES: Record<string, string> = {
+  "1": "I'm building ___ for ___ because ___",
+  "2": "I'm stuck on ___ — looking for help with ___",
+  "3": "Update: I shipped ___; next I'm trying ___",
+};
+
 export default function NewPostPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const initialCategory = searchParams.get("category") === "update" ? "update" : "idea";
+  const templateId = searchParams.get("template");
+  const initialBody = templateId && TEMPLATES[templateId] ? TEMPLATES[templateId] : "";
+
   const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [category, setCategory] = useState("idea");
+  const [body, setBody] = useState(initialBody);
+  const [category, setCategory] = useState(initialCategory);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -47,9 +59,14 @@ export default function NewPostPage() {
 
   const Header = () => (
     <div className="mb-8">
-      <h1 className="section-header">New Post</h1>
+      <Link href="/" className="text-sm text-gray-500 hover:text-gray-700 mb-4 inline-block">
+        ← Back to feed
+      </Link>
+      <h1 className="section-header">
+        {category === "idea" ? "Share an idea" : "Post an update"}
+      </h1>
       <p className="section-subtitle">
-        Share an idea or update with the community
+        Short, unfinished is encouraged. Just start writing.
       </p>
     </div>
   );
@@ -86,12 +103,30 @@ export default function NewPostPage() {
     );
   }
 
+  const wordCount = body.trim().split(/\s+/).filter(Boolean).length;
+  const sentenceCount = body.split(/[.!?]+/).filter(s => s.trim()).length;
+
   return (
     <div>
       <Header />
 
       <div className="card p-6">
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="category" className="label">
+              Type
+            </label>
+            <select
+              id="category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="input-field"
+            >
+              <option value="idea">Idea — something you're thinking about</option>
+              <option value="update">Update — progress on something you're building</option>
+            </select>
+          </div>
+
           <div>
             <label htmlFor="title" className="label">
               Title
@@ -103,38 +138,30 @@ export default function NewPostPage() {
               onChange={(e) => setTitle(e.target.value)}
               required
               className="input-field"
-              placeholder="Give your post a title"
+              placeholder="What's the one-liner?"
             />
-          </div>
-
-          <div>
-            <label htmlFor="category" className="label">
-              Category
-            </label>
-            <select
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="input-field"
-            >
-              <option value="idea">Idea</option>
-              <option value="update">Update</option>
-            </select>
+            <p className="helper-text">Keep it short — you'll explain more below.</p>
           </div>
 
           <div>
             <label htmlFor="body" className="label">
-              Content
+              Details
             </label>
             <textarea
               id="body"
               value={body}
               onChange={(e) => setBody(e.target.value)}
               required
-              rows={6}
-              className="input-field resize-none"
-              placeholder="Share your thoughts..."
+              rows={8}
+              className="input-field resize-none font-normal"
+              placeholder="Share the context, what you've tried, or what you're looking for..."
             />
+            <div className="flex items-center justify-between mt-1.5">
+              <p className="helper-text">Aim for 2–10 sentences. Unfinished thoughts welcome.</p>
+              <p className={`text-xs ${sentenceCount > 10 ? "text-amber-500" : "text-gray-400"}`}>
+                ~{sentenceCount} sentence{sentenceCount !== 1 ? "s" : ""}
+              </p>
+            </div>
           </div>
 
           {error && (
@@ -143,19 +170,25 @@ export default function NewPostPage() {
             </div>
           )}
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
             <button
               type="submit"
               disabled={submitting}
               className="btn-primary"
             >
-              {submitting ? "Creating..." : "Create Post"}
+              {submitting ? "Posting..." : "Post"}
             </button>
             <Link href="/" className="btn-secondary">
               Cancel
             </Link>
           </div>
         </form>
+      </div>
+
+      <div className="mt-6 text-center">
+        <p className="text-xs text-gray-400">
+          Posts are visible to all logged-in members. Be kind.
+        </p>
       </div>
     </div>
   );

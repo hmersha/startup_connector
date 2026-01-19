@@ -40,11 +40,9 @@ export default function PostPage({
 
   useEffect(() => {
     async function fetchData() {
-      // First check authentication
       const { data: authData, error: authError } = await supabase.auth.getUser();
 
       if (authError || !authData?.user) {
-        // No authenticated user - show login prompt
         setAuthChecked(true);
         setLoading(false);
         return;
@@ -53,7 +51,6 @@ export default function PostPage({
       setUser(authData.user);
       setAuthChecked(true);
 
-      // Only fetch post and comments if user is authenticated
       const [postResult, commentsResult] = await Promise.all([
         supabase
           .from("posts")
@@ -105,14 +102,28 @@ export default function PostPage({
     setSubmitting(false);
   };
 
-  if (loading) {
-    return (
-      <div>
-        <div className="card p-8 text-center">
-          <p className="text-gray-500">Loading post...</p>
+  const SkeletonPost = () => (
+    <div>
+      <div className="mb-6">
+        <div className="skeleton w-24 h-4"></div>
+      </div>
+      <div className="card p-6 mb-8">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="skeleton w-14 h-5 rounded-full"></div>
+          <div className="skeleton w-32 h-4"></div>
+        </div>
+        <div className="skeleton w-3/4 h-7 mb-4"></div>
+        <div className="space-y-2">
+          <div className="skeleton w-full h-4"></div>
+          <div className="skeleton w-full h-4"></div>
+          <div className="skeleton w-2/3 h-4"></div>
         </div>
       </div>
-    );
+    </div>
+  );
+
+  if (loading) {
+    return <SkeletonPost />;
   }
 
   if (authChecked && !user) {
@@ -120,7 +131,7 @@ export default function PostPage({
       <div>
         <div className="mb-8">
           <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
-            ← Back to Feed
+            ← Back to feed
           </Link>
         </div>
         <div className="card p-8 text-center">
@@ -130,7 +141,7 @@ export default function PostPage({
             </svg>
           </div>
           <p className="text-gray-600 mb-4">
-            Log in to view this post and its comments.
+            Log in to view this post and join the conversation.
           </p>
           <Link href="/login" className="btn-primary inline-block">
             Log In
@@ -145,7 +156,7 @@ export default function PostPage({
       <div>
         <div className="mb-8">
           <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
-            ← Back to Feed
+            ← Back to feed
           </Link>
         </div>
         <div className="card p-8 text-center">
@@ -158,8 +169,11 @@ export default function PostPage({
   return (
     <div>
       <div className="mb-6">
-        <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
-          ← Back to Feed
+        <Link href="/" className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to feed
         </Link>
       </div>
 
@@ -168,44 +182,67 @@ export default function PostPage({
           <span className={`pill ${post.category === "idea" ? "pill-idea" : "pill-update"}`}>
             {post.category}
           </span>
-          <span className="text-sm text-gray-400">
-            {post.users?.name ?? "Unknown"} · {new Date(post.created_at).toLocaleDateString()}
-          </span>
         </div>
-        <h1 className="text-xl font-semibold text-gray-900 mb-4">{post.title}</h1>
-        <p className="text-gray-600 whitespace-pre-wrap leading-relaxed">{post.body}</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">{post.title}</h1>
+        <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
+          <div className="w-6 h-6 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center">
+            <span className="text-xs font-medium text-white">
+              {(post.users?.name ?? "U")[0].toUpperCase()}
+            </span>
+          </div>
+          <span className="font-medium text-gray-600">{post.users?.name ?? "Unknown"}</span>
+          <span>·</span>
+          <span>{new Date(post.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+        </div>
+        <div className="prose prose-gray max-w-none">
+          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{post.body}</p>
+        </div>
       </article>
 
       <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Comments
-          <span className="ml-2 text-sm font-normal text-gray-400">
-            ({comments.length})
-          </span>
-        </h2>
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Conversation</h2>
+          {comments.length > 0 && (
+            <span className="text-sm text-gray-400">({comments.length})</span>
+          )}
+        </div>
 
         {comments.length === 0 ? (
-          <div className="card p-6 mb-6 text-center">
-            <p className="text-gray-400 text-sm">No comments yet. Be the first to share your thoughts.</p>
+          <div className="card p-6 mb-6">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-gray-600 text-sm">Be the first to comment.</p>
+                <p className="text-gray-400 text-xs mt-1">Ask a question, offer a resource, or just say hi.</p>
+              </div>
+            </div>
           </div>
         ) : (
-          <div className="card divide-y divide-gray-100 mb-6">
+          <div className="space-y-3 mb-6">
             {comments.map((comment) => (
-              <div key={comment.id} className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-7 h-7 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center">
+              <div key={comment.id} className="card p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-xs font-medium text-white">
                       {(comment.users?.name ?? "U")[0].toUpperCase()}
                     </span>
                   </div>
-                  <span className="text-sm font-medium text-gray-900">
-                    {comment.users?.name ?? "Unknown"}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    · {new Date(comment.created_at).toLocaleDateString()}
-                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-gray-900">
+                        {comment.users?.name ?? "Unknown"}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {new Date(comment.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 leading-relaxed">{comment.body}</p>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-600 ml-9">{comment.body}</p>
               </div>
             ))}
           </div>
@@ -216,7 +253,7 @@ export default function PostPage({
             <form onSubmit={handleAddComment} className="space-y-4">
               <div>
                 <label htmlFor="comment" className="label">
-                  Add a comment
+                  Add to the conversation
                 </label>
                 <textarea
                   id="comment"
@@ -225,7 +262,7 @@ export default function PostPage({
                   required
                   rows={3}
                   className="input-field resize-none"
-                  placeholder="Share your thoughts..."
+                  placeholder="Ask a clarifying question, share a resource, or offer encouragement..."
                 />
               </div>
               {error && (
@@ -238,7 +275,7 @@ export default function PostPage({
                 disabled={submitting}
                 className="btn-primary"
               >
-                {submitting ? "Posting..." : "Post Comment"}
+                {submitting ? "Posting..." : "Comment"}
               </button>
             </form>
           </div>
