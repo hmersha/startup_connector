@@ -27,12 +27,9 @@ export default function LoginPage() {
   useEffect(() => {
     let mounted = true;
 
-    // Check for existing session on initial load
     supabase.auth.getUser().then(({ data, error }) => {
       if (!mounted) return;
 
-      // "Auth session missing!" is expected when logged out - not an error
-      // Only the presence of data.user matters
       const currentUser = data?.user ?? null;
       if (currentUser) {
         setUser(currentUser);
@@ -40,7 +37,6 @@ export default function LoginPage() {
       setLoading(false);
     });
 
-    // Listen for auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
@@ -49,7 +45,6 @@ export default function LoginPage() {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
 
-      // Only redirect and upsert when user actually signs in
       if (event === "SIGNED_IN" && currentUser) {
         upsertUser(currentUser);
         router.push("/");
@@ -105,7 +100,7 @@ export default function LoginPage() {
       <div className="max-w-sm mx-auto">
         <Header />
         <div className="card p-8 text-center">
-          <p className="text-gray-500">Loading...</p>
+          <p className="text-slate-400">Loading...</p>
         </div>
       </div>
     );
@@ -122,8 +117,8 @@ export default function LoginPage() {
                 {(user.email ?? "U")[0].toUpperCase()}
               </span>
             </div>
-            <p className="text-sm text-gray-600">Signed in as</p>
-            <p className="font-medium text-gray-900">{user.email}</p>
+            <p className="text-sm text-slate-400">Signed in as</p>
+            <p className="font-medium text-slate-100">{user.email}</p>
           </div>
 
           <div className="space-y-3">
@@ -139,7 +134,7 @@ export default function LoginPage() {
           </div>
 
           {message && (
-            <div className="mt-4 bg-emerald-50 text-emerald-700 text-sm px-4 py-3 rounded-lg border border-emerald-100 text-center">
+            <div className="mt-4 bg-emerald-500/20 text-emerald-300 text-sm px-4 py-3 rounded-lg border border-emerald-500/30 text-center">
               {message}
             </div>
           )}
@@ -177,16 +172,16 @@ export default function LoginPage() {
           <div
             className={`mt-4 text-sm px-4 py-3 rounded-lg border text-center ${
               message.startsWith("Error")
-                ? "bg-red-50 text-red-700 border-red-100"
-                : "bg-emerald-50 text-emerald-700 border-emerald-100"
+                ? "bg-red-500/20 text-red-300 border-red-500/30"
+                : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
             }`}
           >
             {message}
           </div>
         )}
 
-        <div className="mt-6 pt-6 border-t border-gray-100 text-center">
-          <p className="text-sm text-gray-500">
+        <div className="mt-6 pt-6 border-t border-slate-700/50 text-center">
+          <p className="text-sm text-slate-500">
             We'll send you a magic link to sign in.
             <br />
             No password needed.

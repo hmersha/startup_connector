@@ -40,7 +40,6 @@ export default function MessagesPage() {
       setUser(currentUser);
       setAuthChecked(true);
 
-      // Get all conversations the user is part of
       const { data: myMemberships } = await supabase
         .from("conversation_members")
         .select("conversation_id")
@@ -53,21 +52,18 @@ export default function MessagesPage() {
 
       const convoIds = myMemberships.map((m) => m.conversation_id);
 
-      // Get other members in these conversations
       const { data: allMembers } = await supabase
         .from("conversation_members")
         .select("conversation_id, user_id, users(id, name, username)")
         .in("conversation_id", convoIds)
         .neq("user_id", currentUser.id);
 
-      // Get last message for each conversation
       const { data: lastMessages } = await supabase
         .from("messages")
         .select("conversation_id, body, created_at, sender_id")
         .in("conversation_id", convoIds)
         .order("created_at", { ascending: false });
 
-      // Build conversation list
       const convoMap = new Map<string, Conversation>();
 
       allMembers?.forEach((member) => {
@@ -99,7 +95,6 @@ export default function MessagesPage() {
         });
       });
 
-      // Sort by last message time (most recent first)
       const sorted = Array.from(convoMap.values()).sort((a, b) => {
         if (!a.lastMessage && !b.lastMessage) return 0;
         if (!a.lastMessage) return 1;
@@ -143,9 +138,9 @@ export default function MessagesPage() {
   if (authChecked && !user) {
     return (
       <div className="card p-8 text-center">
-        <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-xl flex items-center justify-center mx-auto mb-4">
+        <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
           <svg
-            className="w-6 h-6 text-indigo-600"
+            className="w-6 h-6 text-indigo-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -158,10 +153,10 @@ export default function MessagesPage() {
             />
           </svg>
         </div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">
+        <h2 className="text-lg font-semibold text-slate-100 mb-2">
           Sign in to view messages
         </h2>
-        <p className="text-gray-500 mb-6">
+        <p className="text-slate-400 mb-6">
           Send and receive direct messages with other members.
         </p>
         <Link href="/login" className="btn-primary inline-block">
@@ -175,7 +170,7 @@ export default function MessagesPage() {
     return (
       <div className="space-y-6">
         <div className="skeleton h-8 w-32" />
-        <div className="card divide-y divide-gray-100">
+        <div className="card divide-y divide-slate-700/50">
           {[1, 2, 3].map((i) => (
             <div key={i} className="p-4 flex items-center gap-4">
               <div className="skeleton w-12 h-12 rounded-full" />
@@ -196,7 +191,7 @@ export default function MessagesPage() {
         <h1 className="section-header">Messages</h1>
         <Link
           href="/members"
-          className="text-sm text-indigo-600 hover:text-indigo-700"
+          className="text-sm text-indigo-400 hover:text-indigo-300"
         >
           Find members →
         </Link>
@@ -204,9 +199,9 @@ export default function MessagesPage() {
 
       {conversations.length === 0 ? (
         <div className="card p-8 text-center">
-          <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-50 rounded-xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 bg-slate-700/50 rounded-xl flex items-center justify-center mx-auto mb-4">
             <svg
-              className="w-6 h-6 text-gray-400"
+              className="w-6 h-6 text-slate-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -219,10 +214,10 @@ export default function MessagesPage() {
               />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">
+          <h2 className="text-lg font-semibold text-slate-100 mb-2">
             No messages yet
           </h2>
-          <p className="text-gray-500 mb-6">
+          <p className="text-slate-400 mb-6">
             Start a conversation with someone from the members page.
           </p>
           <Link href="/members" className="btn-primary inline-block">
@@ -230,12 +225,12 @@ export default function MessagesPage() {
           </Link>
         </div>
       ) : (
-        <div className="card divide-y divide-gray-100">
+        <div className="card divide-y divide-slate-700/50">
           {conversations.map((convo) => (
             <Link
               key={convo.id}
               href={`/messages/${convo.id}`}
-              className="p-4 flex items-center gap-4 hover:bg-gray-50 transition-colors"
+              className="p-4 flex items-center gap-4 hover:bg-slate-700/30 transition-colors"
             >
               {/* Avatar */}
               <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
@@ -251,22 +246,22 @@ export default function MessagesPage() {
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-gray-900 truncate">
+                  <span className="font-medium text-slate-100 truncate">
                     {convo.otherUser.username ?? convo.otherUser.name}
                   </span>
                   {convo.lastMessage && (
-                    <span className="text-xs text-gray-400 flex-shrink-0">
+                    <span className="text-xs text-slate-500 flex-shrink-0">
                       {formatTime(convo.lastMessage.created_at)}
                     </span>
                   )}
                 </div>
                 {convo.lastMessage ? (
-                  <p className="text-sm text-gray-500 truncate">
+                  <p className="text-sm text-slate-400 truncate">
                     {convo.lastMessage.sender_id === user?.id ? "You: " : ""}
                     {convo.lastMessage.body}
                   </p>
                 ) : (
-                  <p className="text-sm text-gray-400 italic">
+                  <p className="text-sm text-slate-500 italic">
                     No messages yet
                   </p>
                 )}
@@ -274,7 +269,7 @@ export default function MessagesPage() {
 
               {/* Arrow */}
               <svg
-                className="w-5 h-5 text-gray-300 flex-shrink-0"
+                className="w-5 h-5 text-slate-600 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

@@ -71,7 +71,6 @@ export default function ReputationPage() {
     loadData();
   }, []);
 
-  // Compute totals from events
   const totalGained = events
     .filter((e) => e.delta > 0)
     .reduce((sum, e) => sum + e.delta, 0);
@@ -83,7 +82,6 @@ export default function ReputationPage() {
   const pointsNeeded = Math.max(0, PROJECT_THRESHOLD - reputation);
   const progressPercent = Math.min(100, (reputation / PROJECT_THRESHOLD) * 100);
 
-  // Format date helper
   function formatDate(dateString: string) {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
@@ -95,13 +93,12 @@ export default function ReputationPage() {
     });
   }
 
-  // Not logged in state
   if (authChecked && !user) {
     return (
       <div className="card p-8 text-center">
-        <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-xl flex items-center justify-center mx-auto mb-4">
+        <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
           <svg
-            className="w-6 h-6 text-indigo-600"
+            className="w-6 h-6 text-indigo-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -114,10 +111,10 @@ export default function ReputationPage() {
             />
           </svg>
         </div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">
+        <h2 className="text-lg font-semibold text-slate-100 mb-2">
           Sign in to view your reputation
         </h2>
-        <p className="text-gray-500 mb-6">
+        <p className="text-slate-400 mb-6">
           Track your community standing and unlock new features.
         </p>
         <Link href="/login" className="btn-primary inline-block">
@@ -127,7 +124,6 @@ export default function ReputationPage() {
     );
   }
 
-  // Loading state
   if (loading) {
     return (
       <div className="space-y-6">
@@ -156,23 +152,22 @@ export default function ReputationPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <h1 className="section-header">Your Reputation</h1>
 
       {/* Big reputation number */}
-      <div className="card p-8 text-center">
-        <div className="text-6xl font-bold bg-gradient-to-r from-indigo-600 to-indigo-500 bg-clip-text text-transparent mb-2">
+      <div className="card p-8 text-center group hover:border-indigo-500/30 transition-all duration-300">
+        <div className="text-6xl font-bold gradient-text mb-2 group-hover:scale-105 transition-transform duration-300">
           {reputation}
         </div>
-        <p className="text-gray-500">
+        <p className="text-slate-400">
           {reputation >= PROJECT_THRESHOLD ? (
-            <span className="text-emerald-600 font-medium">
+            <span className="text-emerald-400 font-medium">
               You can create projects!
             </span>
           ) : (
             <>
               Reach {PROJECT_THRESHOLD} reputation to create projects{" "}
-              <span className="font-medium text-indigo-600">
+              <span className="font-medium text-indigo-400">
                 ({pointsNeeded} more needed)
               </span>
             </>
@@ -181,13 +176,13 @@ export default function ReputationPage() {
 
         {/* Progress bar */}
         <div className="mt-6 max-w-md mx-auto">
-          <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+          <div className="flex justify-between text-xs text-slate-500 mb-1.5">
             <span>0</span>
             <span>{PROJECT_THRESHOLD}</span>
           </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="progress-bar">
             <div
-              className="h-full bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-full transition-all duration-500"
+              className="progress-fill"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -196,42 +191,42 @@ export default function ReputationPage() {
 
       {/* Stats cards */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="card p-4 text-center">
-          <div className="text-2xl font-semibold text-emerald-600">
+        <div className="stat-card stat-card-positive group">
+          <div className="text-2xl font-semibold text-emerald-400 group-hover:scale-110 transition-transform duration-200">
             +{totalGained}
           </div>
-          <div className="text-xs text-gray-500 mt-1">Total gained</div>
+          <div className="text-xs text-slate-500 mt-1">Total gained</div>
         </div>
-        <div className="card p-4 text-center">
-          <div className="text-2xl font-semibold text-red-500">
+        <div className="stat-card stat-card-negative group">
+          <div className="text-2xl font-semibold text-red-400 group-hover:scale-110 transition-transform duration-200">
             -{totalLost}
           </div>
-          <div className="text-xs text-gray-500 mt-1">Total lost</div>
+          <div className="text-xs text-slate-500 mt-1">Total lost</div>
         </div>
-        <div className="card p-4 text-center">
+        <div className="stat-card stat-card-neutral group">
           <div
-            className={`text-2xl font-semibold ${
-              netChange >= 0 ? "text-indigo-600" : "text-red-500"
+            className={`text-2xl font-semibold group-hover:scale-110 transition-transform duration-200 ${
+              netChange >= 0 ? "text-indigo-400" : "text-red-400"
             }`}
           >
             {netChange >= 0 ? "+" : ""}
             {netChange}
           </div>
-          <div className="text-xs text-gray-500 mt-1">Net change</div>
+          <div className="text-xs text-slate-500 mt-1">Net change</div>
         </div>
       </div>
 
       {/* History */}
       <div className="card">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900">Reputation History</h2>
+        <div className="px-5 py-4 border-b border-slate-700/50">
+          <h2 className="font-semibold text-slate-100">Reputation History</h2>
         </div>
 
         {events.length === 0 ? (
           <div className="p-8 text-center">
-            <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-50 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 bg-slate-700/50 rounded-xl flex items-center justify-center mx-auto mb-4">
               <svg
-                className="w-6 h-6 text-gray-400"
+                className="w-6 h-6 text-slate-500"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -244,26 +239,28 @@ export default function ReputationPage() {
                 />
               </svg>
             </div>
-            <p className="text-gray-500">No reputation changes yet.</p>
+            <p className="text-slate-500">No reputation changes yet.</p>
           </div>
         ) : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-slate-700/50">
             {events.map((event) => (
               <li
                 key={event.id}
-                className="px-5 py-4 flex items-center justify-between"
+                className="px-5 py-4 flex items-center justify-between hover:bg-slate-700/20 transition-colors duration-200"
               >
                 <div>
-                  <div className="text-sm font-medium text-gray-900">
+                  <div className="text-sm font-medium text-slate-200">
                     {REASON_LABELS[event.reason] || event.reason}
                   </div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-xs text-slate-500">
                     {formatDate(event.created_at)}
                   </div>
                 </div>
                 <div
-                  className={`text-sm font-semibold ${
-                    event.delta >= 0 ? "text-emerald-600" : "text-red-500"
+                  className={`text-sm font-semibold px-2 py-0.5 rounded ${
+                    event.delta >= 0
+                      ? "text-emerald-400 bg-emerald-500/10"
+                      : "text-red-400 bg-red-500/10"
                   }`}
                 >
                   {event.delta >= 0 ? "+" : ""}

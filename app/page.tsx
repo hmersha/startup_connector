@@ -1,285 +1,278 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
 
-type Post = {
-  id: string;
-  title: string;
-  body: string;
-  category: string;
-  created_at: string;
-  author_id: string;
-  users?: { name: string; email: string } | null;
-};
-
-type ActivityStats = {
-  postsThisWeek: number;
-  commentsThisWeek: number;
-};
-
-const TEMPLATES = [
-  {
-    id: 1,
-    label: "Share what you're building",
-    text: "I'm building ___ for ___ because ___",
-    category: "idea",
-  },
-  {
-    id: 2,
-    label: "Ask for help",
-    text: "I'm stuck on ___ — looking for help with ___",
-    category: "idea",
-  },
-  {
-    id: 3,
-    label: "Post an update",
-    text: "Update: I shipped ___; next I'm trying ___",
-    category: "update",
-  },
-];
-
-export default function HomePage() {
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [stats, setStats] = useState<ActivityStats>({ postsThisWeek: 0, commentsThisWeek: 0 });
+export default function LandingPage() {
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    async function checkAuthAndFetchData() {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-
-      if (authError || !authData?.user) {
-        setAuthChecked(true);
-        setLoading(false);
-        return;
-      }
-
-      setUser(authData.user);
-      setAuthChecked(true);
-
-      // Fetch posts and activity stats in parallel
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      const weekAgoISO = oneWeekAgo.toISOString();
-
-      const [postsResult, postsCountResult, commentsCountResult] = await Promise.all([
-        supabase
-          .from("posts")
-          .select("*, users(name, email)")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("posts")
-          .select("id", { count: "exact", head: true })
-          .gte("created_at", weekAgoISO),
-        supabase
-          .from("comments")
-          .select("id", { count: "exact", head: true })
-          .gte("created_at", weekAgoISO),
-      ]);
-
-      if (!postsResult.error) {
-        setPosts(postsResult.data ?? []);
-      }
-
-      setStats({
-        postsThisWeek: postsCountResult.count ?? 0,
-        commentsThisWeek: commentsCountResult.count ?? 0,
-      });
-
-      setLoading(false);
+    async function checkAuth() {
+      const { data } = await supabase.auth.getUser();
+      setIsLoggedIn(!!data?.user);
+      setCheckingAuth(false);
     }
-
-    checkAuthAndFetchData();
+    checkAuth();
   }, []);
 
-  const HeroSection = () => (
-    <div className="text-center mb-10">
-      <h1 className="text-3xl font-bold text-gray-900 tracking-tight mb-3">
-        What are you building?
-      </h1>
-      <p className="text-gray-500 max-w-md mx-auto mb-6">
-        Share unfinished ideas. Get thoughtful responses from people who get it.
-      </p>
-      <div className="flex items-center justify-center gap-3">
-        <Link
-          href="/posts/new?category=idea"
-          className="btn-primary inline-flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-          </svg>
-          Post an idea
-        </Link>
-        <Link
-          href="/posts/new?category=update"
-          className="btn-secondary inline-flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-          Share an update
-        </Link>
-      </div>
-    </div>
-  );
-
-  const TemplatesSection = () => (
-    <div className="mb-8">
-      <p className="text-sm font-medium text-gray-600 mb-3">Start writing</p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {TEMPLATES.map((template) => (
-          <Link
-            key={template.id}
-            href={`/posts/new?category=${template.category}&template=${template.id}`}
-            className="template-card group"
-          >
-            <p className="text-xs font-medium text-gray-500 mb-1.5 group-hover:text-indigo-600 transition-colors">
-              {template.label}
-            </p>
-            <p className="text-sm text-gray-700 italic">"{template.text}"</p>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-
-  const ActivityStrip = () => (
-    <div className="flex items-center justify-center gap-6 text-sm text-gray-500 mb-8">
-      <div className="flex items-center gap-1.5">
-        <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-        <span>{stats.postsThisWeek} post{stats.postsThisWeek !== 1 ? "s" : ""} this week</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <div className="w-2 h-2 bg-indigo-400 rounded-full"></div>
-        <span>{stats.commentsThisWeek} comment{stats.commentsThisWeek !== 1 ? "s" : ""} this week</span>
-      </div>
-    </div>
-  );
-
-  const SkeletonCard = () => (
-    <div className="card p-5">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="skeleton w-14 h-5 rounded-full"></div>
-        <div className="skeleton w-32 h-4"></div>
-      </div>
-      <div className="skeleton w-3/4 h-5 mb-2"></div>
-      <div className="skeleton w-full h-4 mb-1"></div>
-      <div className="skeleton w-2/3 h-4"></div>
-    </div>
-  );
-
-  const FeedSection = () => (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Recent posts</h2>
-      </div>
-      <div className="space-y-4">
-        {posts.map((post) => (
-          <Link
-            key={post.id}
-            href={`/posts/${post.id}`}
-            className="card card-hover block p-5 group"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <span className={`pill ${post.category === "idea" ? "pill-idea" : "pill-update"}`}>
-                {post.category}
-              </span>
-              <span className="text-xs text-gray-400">
-                {post.users?.name ?? "Unknown"} · {new Date(post.created_at).toLocaleDateString()}
-              </span>
-            </div>
-            <h3 className="text-base font-semibold text-gray-900 mb-1.5 group-hover:text-indigo-600 transition-colors">
-              {post.title}
-            </h3>
-            <p className="text-sm text-gray-500 line-clamp-2">
-              {post.body.length > 140 ? post.body.slice(0, 140) + "…" : post.body}
-            </p>
-            <div className="mt-3 flex items-center text-xs font-medium text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
-              Read more
-              <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-
-  // Loading state with skeleton
-  if (loading) {
-    return (
-      <div>
-        <HeroSection />
-        <TemplatesSection />
-        <div className="flex items-center justify-center gap-6 text-sm text-gray-400 mb-8">
-          <div className="skeleton w-28 h-4"></div>
-          <div className="skeleton w-32 h-4"></div>
-        </div>
-        <div className="space-y-4">
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
-        </div>
-      </div>
-    );
+  function handleEnterClick() {
+    if (isLoggedIn) {
+      router.push("/feed");
+    } else {
+      router.push("/login");
+    }
   }
 
-  // Not logged in
-  if (authChecked && !user) {
-    return (
-      <div>
-        <HeroSection />
-        <div className="card p-8 text-center">
-          <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-          </div>
-          <p className="text-gray-600 mb-1">Join the community</p>
-          <p className="text-sm text-gray-400 mb-4">Log in to see what others are building and share your own ideas.</p>
-          <Link href="/login" className="btn-primary inline-block">
-            Log In
-          </Link>
-        </div>
-      </div>
-    );
+  function scrollToFeatures() {
+    document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
   }
 
-  // Empty state
-  if (posts.length === 0) {
-    return (
-      <div>
-        <HeroSection />
-        <TemplatesSection />
-        <ActivityStrip />
-        <div className="card p-8 text-center">
-          <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-          </div>
-          <p className="text-gray-600 mb-1">No posts yet</p>
-          <p className="text-sm text-gray-400 mb-4">Be the first to share what you're working on.</p>
-          <Link href="/posts/new?category=idea" className="btn-primary inline-block">
-            Create First Post
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Main feed view
   return (
-    <div>
-      <HeroSection />
-      <TemplatesSection />
-      <ActivityStrip />
-      <FeedSection />
+    <div className="landing-page">
+      {/* Hero Section */}
+      <section className="relative min-h-[85vh] flex items-center justify-center px-4 overflow-hidden">
+        {/* Background gradient orbs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-violet-500/15 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 text-center max-w-3xl mx-auto">
+          {/* Logo/Brand */}
+          <div className="mb-8">
+            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 mb-6">
+              For students building the future
+            </span>
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
+              <span className="bg-gradient-to-r from-slate-100 via-indigo-200 to-slate-100 bg-clip-text text-transparent">
+                Collab
+              </span>
+              <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-indigo-400 bg-clip-text text-transparent">
+                Space
+              </span>
+            </h1>
+            <p className="text-xl sm:text-2xl text-slate-400 max-w-xl mx-auto leading-relaxed">
+              Share startup ideas, find co-founders, and build your reputation in a trusted student community.
+            </p>
+          </div>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
+            <button
+              onClick={handleEnterClick}
+              disabled={checkingAuth}
+              className="landing-btn-primary group"
+            >
+              {checkingAuth ? (
+                "Loading..."
+              ) : (
+                <>
+                  Enter CollabSpace
+                  <svg
+                    className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </>
+              )}
+            </button>
+            <button
+              onClick={scrollToFeatures}
+              className="landing-btn-secondary"
+            >
+              Learn more
+              <svg
+                className="w-4 h-4 ml-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Social proof hint */}
+          <p className="mt-12 text-sm text-slate-500">
+            Join students from top universities sharing ideas every day
+          </p>
+        </div>
+
+        {/* Scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+          <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="py-24 px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-100 mb-4">
+              Everything you need to build together
+            </h2>
+            <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+              A private space designed for students who want to share ideas without fear, find the right collaborators, and grow their reputation.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Feature 1 */}
+            <div className="glass-card p-8 group">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-indigo-600/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <svg className="w-7 h-7 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-slate-100 mb-3">Share ideas safely</h3>
+              <p className="text-slate-400 leading-relaxed">
+                Your ideas stay within the community. No public exposure, no idea theft. Just trusted peers who want to help.
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="glass-card p-8 group">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500/20 to-violet-600/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <svg className="w-7 h-7 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-slate-100 mb-3">Find collaborators</h3>
+              <p className="text-slate-400 leading-relaxed">
+                Browse members by skills and interests. Message potential co-founders directly. Build your dream team.
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="glass-card p-8 group">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <svg className="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-slate-100 mb-3">Build reputation</h3>
+              <p className="text-slate-400 leading-relaxed">
+                Earn points for helpful contributions. Your reputation shows others you're someone worth working with.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="py-24 px-4 border-t border-slate-800/50">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-100 mb-4">
+              How it works
+            </h2>
+            <p className="text-lg text-slate-400">
+              Get started in three simple steps
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Step 1 */}
+            <div className="relative">
+              <div className="flex items-center gap-4 mb-4">
+                <span className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 font-bold border border-indigo-500/30">
+                  1
+                </span>
+                <div className="hidden md:block flex-1 h-px bg-gradient-to-r from-indigo-500/50 to-transparent" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-100 mb-2">Sign up with your .edu</h3>
+              <p className="text-slate-400 text-sm">
+                Use your student email to join. This keeps the community trusted and spam-free.
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="relative">
+              <div className="flex items-center gap-4 mb-4">
+                <span className="flex items-center justify-center w-10 h-10 rounded-full bg-violet-500/20 text-violet-400 font-bold border border-violet-500/30">
+                  2
+                </span>
+                <div className="hidden md:block flex-1 h-px bg-gradient-to-r from-violet-500/50 to-transparent" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-100 mb-2">Share your ideas</h3>
+              <p className="text-slate-400 text-sm">
+                Post what you're building, ask for feedback, or share updates on your progress.
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="relative">
+              <div className="flex items-center gap-4 mb-4">
+                <span className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+                  3
+                </span>
+              </div>
+              <h3 className="text-lg font-semibold text-slate-100 mb-2">Connect and build</h3>
+              <p className="text-slate-400 text-sm">
+                Message collaborators, join forces on projects, and grow your network.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA Section */}
+      <section className="py-24 px-4">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-slate-100 mb-4">
+            Ready to start building?
+          </h2>
+          <p className="text-lg text-slate-400 mb-8">
+            Join the community of student builders today.
+          </p>
+          <button
+            onClick={handleEnterClick}
+            disabled={checkingAuth}
+            className="landing-btn-primary"
+          >
+            {checkingAuth ? "Loading..." : isLoggedIn ? "Go to Feed" : "Get Started"}
+            <svg
+              className="w-4 h-4 ml-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-12 px-4 border-t border-slate-800/50">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-semibold bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
+              CollabSpace
+            </span>
+            <span className="text-slate-600">|</span>
+            <span className="text-sm text-slate-500">For student builders</span>
+          </div>
+          <div className="flex items-center gap-6 text-sm text-slate-500">
+            <Link href="/login" className="hover:text-slate-300 transition-colors">
+              Login
+            </Link>
+            <Link href="/feed" className="hover:text-slate-300 transition-colors">
+              Feed
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -2,12 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
 export default function Nav() {
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [reputation, setReputation] = useState<number | null>(null);
+
+  const isLandingPage = pathname === "/";
 
   useEffect(() => {
     async function loadUserAndReputation() {
@@ -53,69 +57,78 @@ export default function Nav() {
   }, []);
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-gray-200/60 bg-white/70 backdrop-blur-lg">
-      <div className="mx-auto max-w-2xl px-6">
+    <nav className={`sticky top-0 z-50 border-b border-slate-700/50 ${isLandingPage ? "bg-transparent backdrop-blur-md" : "bg-slate-900/80 backdrop-blur-lg"}`}>
+      <div className="mx-auto max-w-6xl px-6">
         <div className="flex h-16 items-center justify-between">
           <Link
             href="/"
-            className="text-lg font-semibold text-gray-900 hover:text-gray-900"
+            className="text-lg font-semibold group"
           >
-            <span className="bg-gradient-to-r from-indigo-600 to-indigo-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-indigo-400 via-indigo-500 to-violet-400 bg-clip-text text-transparent transition-all duration-300 group-hover:from-indigo-300 group-hover:via-indigo-400 group-hover:to-violet-300">
               CollabSpace
             </span>
           </Link>
           <div className="flex items-center gap-5">
-            <Link
-              href="/"
-              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              Feed
-            </Link>
+            {/* Logged out: Home (landing page) */}
+            {!user && (
+              <Link href="/" className="nav-link">
+                Home
+              </Link>
+            )}
+
+            {/* Logged in: Feed + other pages */}
             {user && (
               <>
-                <Link
-                  href="/members"
-                  className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                >
+                <Link href="/feed" className="nav-link">
+                  Feed
+                </Link>
+                <Link href="/discover" className="nav-link">
+                  Discover
+                </Link>
+                <Link href="/posts/new" className="nav-link">
+                  New Post
+                </Link>
+                <Link href="/members" className="nav-link">
                   Members
                 </Link>
-                <Link
-                  href="/messages"
-                  className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                >
+                <Link href="/connections" className="nav-link">
+                  Connections
+                </Link>
+                <Link href="/messages" className="nav-link">
                   Messages
                 </Link>
-                <Link
-                  href="/profile"
-                  className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                >
+                <Link href="/profile" className="nav-link">
                   Profile
                 </Link>
               </>
             )}
+
+            {/* Reputation badge */}
             {user && reputation !== null && (
               <Link
                 href="/reputation"
-                className="flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                className="flex items-center gap-1.5 text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
               >
-                <span className="flex items-center justify-center w-6 h-6 bg-indigo-50 rounded-full text-xs font-semibold border border-indigo-100">
+                <span className="rep-badge">
                   {reputation}
                 </span>
               </Link>
             )}
+
+            {/* Login/Logout */}
             {user ? (
               <button
                 onClick={async () => {
                   await supabase.auth.signOut();
                 }}
-                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                className="nav-link font-medium"
               >
                 Logout
               </button>
             ) : (
               <Link
                 href="/login"
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                className="text-sm font-medium px-3 py-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30 hover:border-indigo-400/50 hover:text-indigo-300 transition-all duration-200"
               >
                 Login
               </Link>

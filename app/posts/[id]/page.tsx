@@ -23,6 +23,13 @@ type Comment = {
   users?: { name: string; email: string } | null;
 };
 
+async function updatePresence(userId: string) {
+  await supabase
+    .from("users")
+    .update({ last_active_at: new Date().toISOString() })
+    .eq("id", userId);
+}
+
 export default function PostPage({
   params,
 }: {
@@ -98,6 +105,8 @@ export default function PostPage({
     } else if (data) {
       setComments([...comments, data]);
       setCommentBody("");
+      // Update presence on comment creation
+      await updatePresence(user.id);
     }
     setSubmitting(false);
   };
@@ -130,17 +139,17 @@ export default function PostPage({
     return (
       <div>
         <div className="mb-8">
-          <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+          <Link href="/" className="text-sm text-slate-500 hover:text-slate-300">
             ← Back to feed
           </Link>
         </div>
         <div className="card p-8 text-center">
-          <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
-          <p className="text-gray-600 mb-4">
+          <p className="text-slate-200 mb-4">
             Log in to view this post and join the conversation.
           </p>
           <Link href="/login" className="btn-primary inline-block">
@@ -155,12 +164,12 @@ export default function PostPage({
     return (
       <div>
         <div className="mb-8">
-          <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+          <Link href="/" className="text-sm text-slate-500 hover:text-slate-300">
             ← Back to feed
           </Link>
         </div>
         <div className="card p-8 text-center">
-          <p className="text-gray-500">Post not found</p>
+          <p className="text-slate-400">Post not found</p>
         </div>
       </div>
     );
@@ -169,7 +178,7 @@ export default function PostPage({
   return (
     <div>
       <div className="mb-6">
-        <Link href="/" className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1">
+        <Link href="/" className="text-sm text-slate-500 hover:text-slate-300 inline-flex items-center gap-1">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
@@ -183,41 +192,41 @@ export default function PostPage({
             {post.category}
           </span>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">{post.title}</h1>
-        <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
+        <h1 className="text-2xl font-bold text-slate-100 mb-2">{post.title}</h1>
+        <div className="flex items-center gap-2 text-sm text-slate-500 mb-6">
           <div className="w-6 h-6 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center">
             <span className="text-xs font-medium text-white">
               {(post.users?.name ?? "U")[0].toUpperCase()}
             </span>
           </div>
-          <span className="font-medium text-gray-600">{post.users?.name ?? "Unknown"}</span>
+          <span className="font-medium text-slate-300">{post.users?.name ?? "Unknown"}</span>
           <span>·</span>
           <span>{new Date(post.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
         </div>
-        <div className="prose prose-gray max-w-none">
-          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{post.body}</p>
+        <div className="prose prose-invert max-w-none">
+          <p className="text-slate-300 whitespace-pre-wrap leading-relaxed">{post.body}</p>
         </div>
       </article>
 
       <section>
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Conversation</h2>
+          <h2 className="text-lg font-semibold text-slate-100">Conversation</h2>
           {comments.length > 0 && (
-            <span className="text-sm text-gray-400">({comments.length})</span>
+            <span className="text-sm text-slate-500">({comments.length})</span>
           )}
         </div>
 
         {comments.length === 0 ? (
           <div className="card p-6 mb-6">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-8 h-8 bg-slate-700/50 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
               </div>
               <div>
-                <p className="text-gray-600 text-sm">Be the first to comment.</p>
-                <p className="text-gray-400 text-xs mt-1">Ask a question, offer a resource, or just say hi.</p>
+                <p className="text-slate-300 text-sm">Be the first to comment.</p>
+                <p className="text-slate-500 text-xs mt-1">Ask a question, offer a resource, or just say hi.</p>
               </div>
             </div>
           </div>
@@ -233,14 +242,14 @@ export default function PostPage({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-medium text-slate-200">
                         {comment.users?.name ?? "Unknown"}
                       </span>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-slate-500">
                         {new Date(comment.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 leading-relaxed">{comment.body}</p>
+                    <p className="text-sm text-slate-300 leading-relaxed">{comment.body}</p>
                   </div>
                 </div>
               </div>
@@ -266,7 +275,7 @@ export default function PostPage({
                 />
               </div>
               {error && (
-                <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-100">
+                <div className="bg-red-500/20 text-red-300 text-sm px-4 py-3 rounded-lg border border-red-500/30">
                   {error}
                 </div>
               )}

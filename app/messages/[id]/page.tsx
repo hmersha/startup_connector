@@ -18,6 +18,13 @@ type OtherUser = {
   username: string | null;
 };
 
+async function updatePresence(userId: string) {
+  await supabase
+    .from("users")
+    .update({ last_active_at: new Date().toISOString() })
+    .eq("id", userId);
+}
+
 export default function ConversationPage({
   params,
 }: {
@@ -48,7 +55,6 @@ export default function ConversationPage({
       setUser(currentUser);
       setAuthChecked(true);
 
-      // Load messages and other user in parallel
       const [messagesResult, membersResult] = await Promise.all([
         supabase
           .from("messages")
@@ -77,7 +83,6 @@ export default function ConversationPage({
 
     loadConversation();
 
-    // Subscribe to new messages
     const channel = supabase
       .channel(`messages:${id}`)
       .on(
@@ -120,6 +125,8 @@ export default function ConversationPage({
 
     if (!error) {
       setNewMessage("");
+      // Update presence on message send
+      await updatePresence(user.id);
     }
   }
 
@@ -150,7 +157,6 @@ export default function ConversationPage({
     }
   }
 
-  // Group messages by date
   function getMessagesWithDateHeaders() {
     const result: (Message | { type: "date"; date: string })[] = [];
     let lastDate = "";
@@ -170,9 +176,9 @@ export default function ConversationPage({
   if (authChecked && !user) {
     return (
       <div className="card p-8 text-center">
-        <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-xl flex items-center justify-center mx-auto mb-4">
+        <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
           <svg
-            className="w-6 h-6 text-indigo-600"
+            className="w-6 h-6 text-indigo-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -185,10 +191,10 @@ export default function ConversationPage({
             />
           </svg>
         </div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">
+        <h2 className="text-lg font-semibold text-slate-100 mb-2">
           Sign in to view messages
         </h2>
-        <p className="text-gray-500 mb-6">
+        <p className="text-slate-400 mb-6">
           You need to be logged in to view this conversation.
         </p>
         <Link href="/login" className="btn-primary inline-block">
@@ -228,7 +234,7 @@ export default function ConversationPage({
       <div className="flex items-center gap-3 mb-4">
         <Link
           href="/messages"
-          className="text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-slate-500 hover:text-slate-300 transition-colors"
         >
           <svg
             className="w-5 h-5"
@@ -254,7 +260,7 @@ export default function ConversationPage({
           </span>
         </div>
         <div>
-          <h1 className="font-semibold text-gray-900">
+          <h1 className="font-semibold text-slate-100">
             {otherUser?.username ?? otherUser?.name ?? "Unknown"}
           </h1>
         </div>
@@ -264,7 +270,7 @@ export default function ConversationPage({
       <div className="card flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-400">
+            <p className="text-slate-500">
               No messages yet. Start the conversation!
             </p>
           </div>
@@ -276,7 +282,7 @@ export default function ConversationPage({
                   key={`date-${item.date}`}
                   className="flex justify-center py-2"
                 >
-                  <span className="text-xs text-gray-400 bg-gray-50 px-3 py-1 rounded-full">
+                  <span className="text-xs text-slate-500 bg-slate-800/50 px-3 py-1 rounded-full">
                     {formatDateHeader(item.date)}
                   </span>
                 </div>
@@ -295,13 +301,13 @@ export default function ConversationPage({
                   className={`max-w-[75%] px-4 py-2 rounded-2xl ${
                     isMine
                       ? "bg-indigo-600 text-white rounded-br-md"
-                      : "bg-gray-100 text-gray-900 rounded-bl-md"
+                      : "bg-slate-700/50 text-slate-100 rounded-bl-md"
                   }`}
                 >
                   <p className="text-sm break-words">{msg.body}</p>
                   <p
                     className={`text-xs mt-1 ${
-                      isMine ? "text-indigo-200" : "text-gray-400"
+                      isMine ? "text-indigo-200" : "text-slate-500"
                     }`}
                   >
                     {formatTime(msg.created_at)}
