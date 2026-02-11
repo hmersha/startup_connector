@@ -58,7 +58,7 @@ export default function Nav() {
 
   return (
     <nav className={`sticky top-0 z-50 border-b border-slate-700/50 ${isLandingPage ? "bg-transparent backdrop-blur-md" : "bg-slate-900/80 backdrop-blur-lg"}`}>
-      <div className="mx-auto max-w-6xl px-6">
+      <div className="nav-container">
         <div className="flex h-16 items-center justify-between">
           <Link
             href="/"

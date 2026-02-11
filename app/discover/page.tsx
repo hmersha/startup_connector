@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import AppShell from "@/components/AppShell";
 
 // === TYPES ===
 
@@ -36,16 +37,29 @@ type MatchFeedback = {
   action: string;
 };
 
+type SavedBuilder = {
+  saved_user_id: string;
+};
+
+type RecentPost = {
+  id: string;
+  title: string;
+  category: string;
+  created_at: string;
+  users: { name: string; username: string | null } | null;
+};
+
 type ScoredBuilder = BuilderProfile & {
   score: number;
   matchReasons: string[];
 };
 
+type Tab = "for-you" | "all-builders";
+
 // === MATCHING ALGORITHM ===
 
 const STAGE_ORDER = ["idea", "prototype", "users", "revenue"];
 
-// Skills that complement what someone is looking for
 const SKILL_COMPLEMENT_MAP: Record<string, string[]> = {
   cofounder: ["leadership", "business", "strategy"],
   developer: ["frontend", "backend", "fullstack", "mobile", "devops"],
@@ -74,28 +88,19 @@ function computeMatchScore(
   },
   connectedIds: Set<string>,
   pendingIds: Set<string>,
-  dismissedIds: Set<string>,
-  lessLikeThisIds: Set<string>
+  dismissedIds: Set<string>
 ): { score: number; reasons: string[] } {
   let score = 0;
   const reasons: string[] = [];
 
-  // Already connected or pending - exclude
   if (connectedIds.has(candidate.id) || pendingIds.has(candidate.id)) {
     return { score: -100, reasons: [] };
   }
 
-  // Previously dismissed - heavy penalty
   if (dismissedIds.has(candidate.id)) {
     return { score: -50, reasons: [] };
   }
 
-  // Less like this - moderate penalty but still show if high score
-  if (lessLikeThisIds.has(candidate.id)) {
-    score -= 20;
-  }
-
-  // Category overlap: +4 per match
   const categoryOverlap = candidate.categories.filter((c) =>
     currentUser.categories.includes(c)
   );
@@ -104,33 +109,27 @@ function computeMatchScore(
     reasons.push(`Interested in ${categoryOverlap.slice(0, 2).join(", ")}`);
   }
 
-  // Stage matching: +5 exact, +2 adjacent
   const stageDistance = getStageDistance(candidate.stage, currentUser.stage);
   if (stageDistance === 0) {
     score += 5;
     reasons.push(`Same stage: ${candidate.stage}`);
   } else if (stageDistance === 1) {
     score += 2;
-    reasons.push(`Similar stage: ${candidate.stage}`);
   }
 
-  // Skills complement looking_for: +4 per complementary skill
   let complementCount = 0;
   for (const lookingFor of currentUser.looking_for) {
     const complementarySkills = SKILL_COMPLEMENT_MAP[lookingFor] || [];
     const hasComplement = candidate.skills.some((s) =>
       complementarySkills.includes(s.toLowerCase())
     );
-    if (hasComplement) {
-      complementCount++;
-    }
+    if (hasComplement) complementCount++;
   }
   if (complementCount > 0) {
     score += complementCount * 4;
     reasons.push(`Has skills you're looking for`);
   }
 
-  // Reverse: their looking_for matches my skills
   for (const theirLookingFor of candidate.looking_for) {
     const complementarySkills = SKILL_COMPLEMENT_MAP[theirLookingFor] || [];
     const iMatch = currentUser.skills.some((s) =>
@@ -145,34 +144,28 @@ function computeMatchScore(
     }
   }
 
-  // Same school: +2
   if (
     currentUser.school &&
     candidate.school &&
     currentUser.school.toLowerCase() === candidate.school.toLowerCase()
   ) {
     score += 2;
-    reasons.push(`Same school: ${candidate.school}`);
+    reasons.push(`Same school`);
   }
 
-  // Boost for active users
   if (candidate.last_active_at) {
     const lastActive = new Date(candidate.last_active_at);
     const daysSinceActive = (Date.now() - lastActive.getTime()) / (1000 * 60 * 60 * 24);
     if (daysSinceActive < 1) {
       score += 2;
-      reasons.push("Recently active");
+      reasons.push("Active today");
     } else if (daysSinceActive < 7) {
       score += 1;
     }
   }
 
-  // Boost for having a one_liner (more complete profile)
-  if (candidate.one_liner) {
-    score += 1;
-  }
+  if (candidate.one_liner) score += 1;
 
-  // If no specific reasons, add a generic one
   if (reasons.length === 0 && score > 0) {
     reasons.push("Potential collaborator");
   }
@@ -180,181 +173,254 @@ function computeMatchScore(
   return { score, reasons };
 }
 
-// === COMPONENTS ===
+// === HELPER FUNCTIONS ===
+
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return "yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// === BUILDER CARD COMPONENT ===
 
 function BuilderCard({
   builder,
+  isSaved,
+  isPending,
+  isConnected,
+  onPass,
   onConnect,
-  onDismiss,
-  onLessLikeThis,
-  onGenerateIntro,
+  onSave,
   isConnecting,
-  isGeneratingIntro,
+  showMatchReasons = false,
 }: {
-  builder: ScoredBuilder;
+  builder: ScoredBuilder | BuilderProfile;
+  isSaved: boolean;
+  isPending: boolean;
+  isConnected: boolean;
+  onPass: () => void;
   onConnect: () => void;
-  onDismiss: () => void;
-  onLessLikeThis: () => void;
-  onGenerateIntro: () => void;
+  onSave: () => void;
   isConnecting: boolean;
-  isGeneratingIntro: boolean;
+  showMatchReasons?: boolean;
 }) {
   const displayName = builder.username || builder.name || "Builder";
   const initials = displayName.slice(0, 2).toUpperCase();
-  const showOneLiner = builder.visibility !== "private";
+  const isPrivate = builder.visibility === "private";
+  const showDetails = !isPrivate || isConnected;
+  const scoredBuilder = "matchReasons" in builder ? builder : null;
 
   return (
-    <div className="discover-card">
-      <div className="discover-card-header">
-        <div className="discover-avatar">
+    <div className="discover-card-v2">
+      {/* Header */}
+      <div className="discover-card-header-v2">
+        <div className="discover-avatar-v2">
           <span>{initials}</span>
         </div>
-        <div className="discover-info">
-          <h3 className="discover-name">{displayName}</h3>
-          {builder.school && (
-            <p className="discover-school">{builder.school}</p>
+        <div className="discover-card-info">
+          <h3 className="discover-card-name">{displayName}</h3>
+          {showDetails && builder.school && (
+            <p className="discover-card-school">{builder.school}</p>
           )}
         </div>
-        <div className="discover-rep">
-          <span className="discover-rep-value">{builder.reputation}</span>
-          <span className="discover-rep-label">rep</span>
-        </div>
+        <button
+          onClick={onSave}
+          className={`discover-save-btn ${isSaved ? "discover-save-btn-active" : ""}`}
+          title={isSaved ? "Remove from saved" : "Save builder"}
+        >
+          <svg
+            className="w-5 h-5"
+            fill={isSaved ? "currentColor" : "none"}
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+            />
+          </svg>
+        </button>
       </div>
 
-      {showOneLiner && builder.one_liner ? (
-        <p className="discover-one-liner">{builder.one_liner}</p>
-      ) : builder.visibility === "private" ? (
-        <p className="discover-private-notice">Connect to see full profile</p>
+      {/* One-liner */}
+      {showDetails && builder.one_liner ? (
+        <p className="discover-card-oneliner">{builder.one_liner}</p>
+      ) : isPrivate && !isConnected ? (
+        <p className="discover-card-private">Connect to see full profile</p>
+      ) : !builder.one_liner ? (
+        <p className="discover-card-empty">No bio yet</p>
       ) : null}
 
-      {/* Tags */}
-      <div className="discover-tags">
-        {builder.stage && (
-          <span className="discover-tag discover-tag-stage">{builder.stage}</span>
-        )}
-        {builder.categories.slice(0, 3).map((cat) => (
-          <span key={cat} className="discover-tag discover-tag-category">
-            {cat}
+      {/* Stage Badge */}
+      {showDetails && builder.stage && (
+        <div className="discover-card-stage">
+          <span className={`discover-stage-badge discover-stage-${builder.stage}`}>
+            {builder.stage}
           </span>
-        ))}
-      </div>
+          {builder.availability && (
+            <span className="discover-availability">{builder.availability}</span>
+          )}
+        </div>
+      )}
 
-      {/* Match reasons */}
-      {builder.matchReasons.length > 0 && (
-        <div className="discover-reasons">
-          <span className="discover-reasons-label">Why matched</span>
-          <ul className="discover-reasons-list">
-            {builder.matchReasons.slice(0, 3).map((reason, i) => (
-              <li key={i}>{reason}</li>
-            ))}
-          </ul>
+      {/* Chips */}
+      {showDetails && (
+        <div className="discover-card-chips">
+          {builder.categories.slice(0, 2).map((cat) => (
+            <span key={cat} className="discover-chip discover-chip-category">
+              {cat}
+            </span>
+          ))}
+          {builder.looking_for.slice(0, 2).map((lf) => (
+            <span key={lf} className="discover-chip discover-chip-looking">
+              {lf}
+            </span>
+          ))}
+          {builder.skills.slice(0, 1).map((skill) => (
+            <span key={skill} className="discover-chip discover-chip-skill">
+              {skill}
+            </span>
+          ))}
+          {(builder.categories.length + builder.looking_for.length + builder.skills.length > 5) && (
+            <span className="discover-chip-more">
+              +{builder.categories.length + builder.looking_for.length + builder.skills.length - 5}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Match Reasons (For You tab only) */}
+      {showMatchReasons && scoredBuilder && scoredBuilder.matchReasons.length > 0 && (
+        <div className="discover-card-reasons">
+          {scoredBuilder.matchReasons.slice(0, 2).map((reason, i) => (
+            <span key={i} className="discover-reason">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              {reason}
+            </span>
+          ))}
         </div>
       )}
 
       {/* Actions */}
-      <div className="discover-actions">
-        <button
-          onClick={onConnect}
-          disabled={isConnecting}
-          className="discover-btn discover-btn-connect"
-        >
-          {isConnecting ? "..." : "Connect"}
-        </button>
-        <button
-          onClick={onGenerateIntro}
-          disabled={isGeneratingIntro}
-          className="discover-btn discover-btn-ai"
-          title="AI-generate an intro message"
-        >
-          {isGeneratingIntro ? (
-            <span className="ai-spinner" />
-          ) : (
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-          )}
-          Intro
-        </button>
-        <button onClick={onDismiss} className="discover-btn discover-btn-dismiss">
-          Dismiss
-        </button>
-        <button
-          onClick={onLessLikeThis}
-          className="discover-btn discover-btn-less"
-          title="Show fewer like this"
-        >
-          Less like this
+      <div className="discover-card-actions">
+        {isConnected ? (
+          <Link href="/messages" className="discover-action-btn discover-action-message">
+            Message
+          </Link>
+        ) : isPending ? (
+          <span className="discover-action-pending">Request Sent</span>
+        ) : (
+          <>
+            <button onClick={onPass} className="discover-action-btn discover-action-pass">
+              Pass
+            </button>
+            <button
+              onClick={onConnect}
+              disabled={isConnecting}
+              className="discover-action-btn discover-action-connect"
+            >
+              {isConnecting ? "..." : "Connect"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// === SAVED BUILDERS ROW ===
+
+function SavedBuilderRow({
+  builder,
+  onRemove,
+  onConnect,
+  isPending,
+  isConnected,
+}: {
+  builder: BuilderProfile;
+  onRemove: () => void;
+  onConnect: () => void;
+  isPending: boolean;
+  isConnected: boolean;
+}) {
+  const displayName = builder.username || builder.name || "Builder";
+
+  return (
+    <div className="saved-builder-row">
+      <div className="saved-builder-avatar">
+        {displayName.slice(0, 1).toUpperCase()}
+      </div>
+      <div className="saved-builder-info">
+        <span className="saved-builder-name">{displayName}</span>
+        {builder.stage && (
+          <span className="saved-builder-stage">{builder.stage}</span>
+        )}
+      </div>
+      <div className="saved-builder-actions">
+        {isConnected ? (
+          <Link href="/messages" className="text-xs text-indigo-400 hover:text-indigo-300">
+            Message
+          </Link>
+        ) : isPending ? (
+          <span className="text-xs text-slate-500">Pending</span>
+        ) : (
+          <button
+            onClick={onConnect}
+            className="text-xs text-indigo-400 hover:text-indigo-300"
+          >
+            Connect
+          </button>
+        )}
+        <button onClick={onRemove} className="saved-builder-remove" title="Remove">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
       </div>
     </div>
   );
 }
 
-// === INTRO MODAL ===
+// === COMMUNITY HIGHLIGHTS ===
 
-function IntroModal({
-  intro,
-  targetName,
-  onClose,
-  error,
-}: {
-  intro: string;
-  targetName: string;
-  onClose: () => void;
-  error: string | null;
-}) {
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(intro);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Fallback
-      const textarea = document.createElement("textarea");
-      textarea.value = intro;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textarea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  }
+function CommunityHighlights({ posts }: { posts: RecentPost[] }) {
+  if (posts.length === 0) return null;
 
   return (
-    <div className="ai-modal-overlay" onClick={onClose}>
-      <div className="ai-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="ai-modal-header">
-          <div className="ai-modal-title">
-            <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-            Intro for {targetName}
-          </div>
-          <button onClick={onClose} className="ai-modal-close">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {error ? (
-          <div className="ai-modal-error">{error}</div>
-        ) : (
-          <>
-            <div className="ai-modal-body">
-              <p className="ai-modal-intro">{intro}</p>
+    <div className="rail-widget">
+      <div className="rail-widget-header">
+        <h3 className="rail-widget-title">Community Highlights</h3>
+        <Link href="/feed" className="rail-widget-link">See all</Link>
+      </div>
+      <div className="community-posts">
+        {posts.map((post) => (
+          <Link key={post.id} href={`/posts/${post.id}`} className="community-post">
+            <div className="community-post-header">
+              <span className={`community-post-category community-post-${post.category}`}>
+                {post.category}
+              </span>
+              <span className="community-post-time">{formatTimeAgo(post.created_at)}</span>
             </div>
-            <div className="ai-modal-footer">
-              <button onClick={handleCopy} className="btn-primary text-sm px-4 py-2">
-                {copied ? "Copied!" : "Copy to clipboard"}
-              </button>
-              <span className="ai-modal-hint">Paste this when you message them</span>
-            </div>
-          </>
-        )}
+            <h4 className="community-post-title">{post.title}</h4>
+            <p className="community-post-author">
+              by {post.users?.username || post.users?.name || "Someone"}
+            </p>
+          </Link>
+        ))}
       </div>
     </div>
   );
@@ -366,35 +432,31 @@ export default function DiscoverPage() {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<BuilderProfile | null>(null);
   const [candidates, setCandidates] = useState<BuilderProfile[]>([]);
+  const [allBuilders, setAllBuilders] = useState<BuilderProfile[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [feedbacks, setFeedbacks] = useState<MatchFeedback[]>([]);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [savedBuilders, setSavedBuilders] = useState<BuilderProfile[]>([]);
+  const [recentPosts, setRecentPosts] = useState<RecentPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>("for-you");
   const [connectingId, setConnectingId] = useState<string | null>(null);
-  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
-  const [refreshing, setRefreshing] = useState(false);
-  const [introModal, setIntroModal] = useState<{
-    targetName: string;
-    intro: string;
-    error: string | null;
-  } | null>(null);
-  const [generatingIntroFor, setGeneratingIntroFor] = useState<string | null>(null);
+  const [passedIds, setPassedIds] = useState<Set<string>>(new Set());
+
+  // Pagination for All Builders
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 12;
 
   // Load all data
-  const loadData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true);
-      setRemovedIds(new Set()); // Reset removed IDs on refresh
-    } else {
-      setLoading(true);
-    }
+  const loadData = useCallback(async () => {
+    setLoading(true);
 
     const { data: authData, error: authError } = await supabase.auth.getUser();
 
     if (authError || !authData?.user) {
       setAuthChecked(true);
       setLoading(false);
-      setRefreshing(false);
       return;
     }
 
@@ -403,34 +465,54 @@ export default function DiscoverPage() {
     setAuthChecked(true);
 
     // Fetch in parallel
-    const [profileResult, candidatesResult, connectionsResult, feedbackResult] =
-      await Promise.all([
-        // Current user's profile
-        supabase
-          .from("users")
-          .select("*")
-          .eq("id", currentUser.id)
-          .single(),
-        // Candidate users (excluding self, limit 80)
-        supabase
-          .from("users")
-          .select("*")
-          .neq("id", currentUser.id)
-          .in("visibility", ["public", "match_only"])
-          .limit(80),
-        // Connections
-        supabase
-          .from("connections")
-          .select("requester_id, addressee_id, status")
-          .or(
-            `requester_id.eq.${currentUser.id},addressee_id.eq.${currentUser.id}`
-          ),
-        // Match feedback
-        supabase
-          .from("match_feedback")
-          .select("target_user_id, action")
-          .eq("user_id", currentUser.id),
-      ]);
+    const [
+      profileResult,
+      candidatesResult,
+      allBuildersResult,
+      connectionsResult,
+      feedbackResult,
+      savedResult,
+      postsResult,
+    ] = await Promise.all([
+      // Current user's profile
+      supabase.from("users").select("*").eq("id", currentUser.id).single(),
+      // For You: public + match_only
+      supabase
+        .from("users")
+        .select("*")
+        .neq("id", currentUser.id)
+        .in("visibility", ["public", "match_only"])
+        .limit(100),
+      // All Builders: public + private only (NOT match_only)
+      supabase
+        .from("users")
+        .select("*")
+        .neq("id", currentUser.id)
+        .in("visibility", ["public", "private"])
+        .order("reputation", { ascending: false })
+        .limit(200),
+      // Connections
+      supabase
+        .from("connections")
+        .select("requester_id, addressee_id, status")
+        .or(`requester_id.eq.${currentUser.id},addressee_id.eq.${currentUser.id}`),
+      // Match feedback
+      supabase
+        .from("match_feedback")
+        .select("target_user_id, action")
+        .eq("user_id", currentUser.id),
+      // Saved builders
+      supabase
+        .from("saved_builders")
+        .select("saved_user_id")
+        .eq("user_id", currentUser.id),
+      // Recent posts for community highlights
+      supabase
+        .from("posts")
+        .select("id, title, category, created_at, users(name, username)")
+        .order("created_at", { ascending: false })
+        .limit(5),
+    ]);
 
     if (profileResult.data) {
       setUserProfile(profileResult.data as BuilderProfile);
@@ -438,6 +520,10 @@ export default function DiscoverPage() {
 
     if (candidatesResult.data) {
       setCandidates(candidatesResult.data as BuilderProfile[]);
+    }
+
+    if (allBuildersResult.data) {
+      setAllBuilders(allBuildersResult.data as BuilderProfile[]);
     }
 
     if (connectionsResult.data) {
@@ -448,41 +534,77 @@ export default function DiscoverPage() {
       setFeedbacks(feedbackResult.data);
     }
 
+    if (savedResult.data) {
+      const ids = new Set(savedResult.data.map((s: SavedBuilder) => s.saved_user_id));
+      setSavedIds(ids);
+    }
+
+    if (postsResult.data) {
+      setRecentPosts(postsResult.data as RecentPost[]);
+    }
+
     setLoading(false);
-    setRefreshing(false);
   }, []);
+
+  // Load saved builders details when savedIds change
+  useEffect(() => {
+    async function loadSavedBuilders() {
+      if (savedIds.size === 0) {
+        setSavedBuilders([]);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("users")
+        .select("*")
+        .in("id", [...savedIds]);
+
+      if (data) {
+        setSavedBuilders(data as BuilderProfile[]);
+      }
+    }
+
+    loadSavedBuilders();
+  }, [savedIds]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Compute scored and sorted matches
-  const topMatches = useMemo(() => {
-    if (!userProfile || candidates.length === 0) return [];
+  // Build connection lookup sets
+  const { connectedIds, pendingIds } = useMemo(() => {
+    const connected = new Set<string>();
+    const pending = new Set<string>();
 
-    // Build sets for quick lookup
-    const connectedIds = new Set<string>();
-    const pendingIds = new Set<string>();
+    if (!userProfile) return { connectedIds: connected, pendingIds: pending };
+
     connections.forEach((c) => {
-      const otherId =
-        c.requester_id === userProfile.id ? c.addressee_id : c.requester_id;
+      const otherId = c.requester_id === userProfile.id ? c.addressee_id : c.requester_id;
       if (c.status === "accepted") {
-        connectedIds.add(otherId);
+        connected.add(otherId);
       } else if (c.status === "pending") {
-        pendingIds.add(otherId);
+        pending.add(otherId);
       }
     });
 
-    const dismissedIds = new Set<string>();
-    const lessLikeThisIds = new Set<string>();
-    feedbacks.forEach((f) => {
-      if (f.action === "dismiss") dismissedIds.add(f.target_user_id);
-      if (f.action === "less_like_this") lessLikeThisIds.add(f.target_user_id);
-    });
+    return { connectedIds: connected, pendingIds: pending };
+  }, [userProfile, connections]);
 
-    // Score each candidate
+  // Dismissed IDs from feedback
+  const dismissedIds = useMemo(() => {
+    const ids = new Set<string>();
+    feedbacks.forEach((f) => {
+      if (f.action === "dismiss") ids.add(f.target_user_id);
+    });
+    return ids;
+  }, [feedbacks]);
+
+  // Compute "For You" matches
+  const forYouMatches = useMemo(() => {
+    if (!userProfile || candidates.length === 0) return [];
+
     const scored: ScoredBuilder[] = candidates
-      .filter((c) => !removedIds.has(c.id))
+      .filter((c) => !passedIds.has(c.id) && !dismissedIds.has(c.id))
       .map((candidate) => {
         const { score, reasons } = computeMatchScore(
           candidate,
@@ -496,17 +618,29 @@ export default function DiscoverPage() {
           },
           connectedIds,
           pendingIds,
-          dismissedIds,
-          lessLikeThisIds
+          dismissedIds
         );
         return { ...candidate, score, matchReasons: reasons };
       })
-      .filter((c) => c.score > -50) // Exclude heavily penalized
+      .filter((c) => c.score > -50)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
+      .slice(0, 12);
 
     return scored;
-  }, [userProfile, candidates, connections, feedbacks, removedIds]);
+  }, [userProfile, candidates, connectedIds, pendingIds, dismissedIds, passedIds]);
+
+  // Paginated All Builders
+  const paginatedBuilders = useMemo(() => {
+    const filtered = allBuilders.filter((b) => !passedIds.has(b.id));
+    const start = 0;
+    const end = page * PAGE_SIZE;
+    return filtered.slice(start, end);
+  }, [allBuilders, page, passedIds]);
+
+  const hasMoreBuilders = useMemo(() => {
+    const filtered = allBuilders.filter((b) => !passedIds.has(b.id));
+    return filtered.length > page * PAGE_SIZE;
+  }, [allBuilders, page, passedIds]);
 
   // Actions
   const handleConnect = useCallback(
@@ -521,12 +655,10 @@ export default function DiscoverPage() {
       });
 
       if (!error) {
-        // Update local state
         setConnections((prev) => [
           ...prev,
           { requester_id: user.id, addressee_id: targetId, status: "pending" },
         ]);
-        setRemovedIds((prev) => new Set([...prev, targetId]));
       }
 
       setConnectingId(null);
@@ -534,18 +666,17 @@ export default function DiscoverPage() {
     [user]
   );
 
-  const handleDismiss = useCallback(
+  const handlePass = useCallback(
     async (targetId: string) => {
       if (!user) return;
 
-      // Insert feedback
+      // Record as dismiss feedback
       await supabase.from("match_feedback").upsert(
         { user_id: user.id, target_user_id: targetId, action: "dismiss" },
         { onConflict: "user_id,target_user_id" }
       );
 
-      // Remove from list immediately
-      setRemovedIds((prev) => new Set([...prev, targetId]));
+      setPassedIds((prev) => new Set([...prev, targetId]));
       setFeedbacks((prev) => [
         ...prev.filter((f) => f.target_user_id !== targetId),
         { target_user_id: targetId, action: "dismiss" },
@@ -554,279 +685,222 @@ export default function DiscoverPage() {
     [user]
   );
 
-  const handleLessLikeThis = useCallback(
+  const handleSave = useCallback(
     async (targetId: string) => {
       if (!user) return;
 
-      // Insert feedback
-      await supabase.from("match_feedback").upsert(
-        { user_id: user.id, target_user_id: targetId, action: "less_like_this" },
-        { onConflict: "user_id,target_user_id" }
-      );
+      const wasSaved = savedIds.has(targetId);
 
-      // Remove from list immediately
-      setRemovedIds((prev) => new Set([...prev, targetId]));
-      setFeedbacks((prev) => [
-        ...prev.filter((f) => f.target_user_id !== targetId),
-        { target_user_id: targetId, action: "less_like_this" },
-      ]);
-    },
-    [user]
-  );
+      if (wasSaved) {
+        // Unsave
+        await supabase
+          .from("saved_builders")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("saved_user_id", targetId);
 
-  // Generate AI intro
-  const handleGenerateIntro = useCallback(
-    async (builder: ScoredBuilder) => {
-      if (!user || !userProfile) return;
-
-      const targetName = builder.username || builder.name || "Builder";
-      setGeneratingIntroFor(builder.id);
-
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
-
-        if (!token) {
-          setIntroModal({ targetName, intro: "", error: "Not authenticated. Please log in again." });
-          setGeneratingIntroFor(null);
-          return;
-        }
-
-        const response = await fetch("/api/ai/generate-intro", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            currentUser: {
-              username: userProfile.username,
-              one_liner: userProfile.one_liner,
-              categories: userProfile.categories,
-              stage: userProfile.stage,
-              looking_for: userProfile.looking_for,
-              skills: userProfile.skills,
-              school: userProfile.school,
-            },
-            targetUser: {
-              username: builder.username,
-              one_liner: builder.one_liner,
-              categories: builder.categories,
-              stage: builder.stage,
-              looking_for: builder.looking_for,
-              skills: builder.skills,
-              school: builder.school,
-            },
-          }),
+        setSavedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(targetId);
+          return next;
+        });
+      } else {
+        // Save
+        await supabase.from("saved_builders").insert({
+          user_id: user.id,
+          saved_user_id: targetId,
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          setIntroModal({ targetName, intro: "", error: data.error || "Failed to generate intro." });
-        } else {
-          setIntroModal({ targetName, intro: data.intro, error: null });
-        }
-      } catch {
-        setIntroModal({ targetName, intro: "", error: "Network error. Please try again." });
+        setSavedIds((prev) => new Set([...prev, targetId]));
       }
-
-      setGeneratingIntroFor(null);
     },
-    [user, userProfile]
+    [user, savedIds]
   );
 
-  // === RENDER ===
-
-  if (loading) {
-    return (
-      <div className="discover-container">
-        <div className="discover-header">
-          <div className="skeleton h-8 w-48 mb-2" />
-          <div className="skeleton h-4 w-64" />
-        </div>
-        <div className="discover-grid">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="skeleton h-64 rounded-xl" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (authChecked && !user) {
-    return (
-      <div className="discover-container">
-        <div className="discover-cta">
-          <div className="discover-cta-icon">
-            <svg
-              className="w-12 h-12 text-indigo-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
-          </div>
-          <h1 className="discover-cta-title">Find your co-founders</h1>
-          <p className="discover-cta-text">
-            Log in to discover builders who match your interests and goals.
-          </p>
-          <Link href="/login" className="btn-primary">
-            Log in to discover
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Check if user has set up their builder card
+  // Check if user has builder card
   const hasBuilderCard =
     userProfile &&
     ((userProfile.categories && userProfile.categories.length > 0) ||
       userProfile.stage ||
       (userProfile.looking_for && userProfile.looking_for.length > 0));
 
-  return (
-    <div className="discover-container">
-      <header className="discover-header">
-        <div>
-          <h1 className="discover-title">Discover Builders</h1>
-          <p className="discover-subtitle">
-            People who match your interests and goals
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => loadData(true)}
-            disabled={refreshing}
-            className="discover-refresh-btn"
-            title="Refresh matches"
-          >
-            <svg
-              className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
-          {!hasBuilderCard && (
-            <Link href="/profile?tab=builder" className="discover-setup-btn">
-              Set up your Builder Card
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          )}
-        </div>
-      </header>
+  // === RENDER ===
 
-      {!hasBuilderCard && (
-        <div className="discover-notice">
-          <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>
-            Complete your Builder Card in{" "}
-            <Link href="/profile?tab=builder" className="text-indigo-400 hover:text-indigo-300">
-              Profile
-            </Link>{" "}
-            to get better matches.
-          </span>
+  if (loading) {
+    return (
+      <AppShell
+        title="Find teammates for your next venture"
+        rightRail={
+          <div className="space-y-5">
+            <div className="skeleton h-48 rounded-xl" />
+          </div>
+        }
+      >
+        <div className="discover-tabs-skeleton">
+          <div className="skeleton h-10 w-24 rounded-lg" />
+          <div className="skeleton h-10 w-28 rounded-lg" />
         </div>
-      )}
+        <div className="discover-grid-v2">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="skeleton h-72 rounded-xl" />
+          ))}
+        </div>
+      </AppShell>
+    );
+  }
 
-      {topMatches.length === 0 ? (
-        <div className="discover-empty">
-          <div className="discover-empty-icon">
-            <svg
-              className="w-12 h-12 text-slate-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
+  if (authChecked && !user) {
+    return (
+      <AppShell>
+        <div className="discover-cta">
+          <div className="discover-cta-icon">
+            <svg className="w-12 h-12 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </div>
-          <h2 className="discover-empty-title">No matches found</h2>
-          <p className="discover-empty-text">
-            {!hasBuilderCard
-              ? "Complete your Builder Card to get matched with other builders."
-              : candidates.length === 0
-              ? "No other builders with public profiles yet. Check back soon!"
-              : "You've seen all available matches. Check back later as more people join."}
+          <h1 className="discover-cta-title">Find your co-founders</h1>
+          <p className="discover-cta-text">
+            Log in to discover builders who match your interests and goals.
           </p>
-          <div className="discover-empty-actions">
-            {!hasBuilderCard ? (
-              <Link href="/profile?tab=builder" className="btn-primary">
-                Complete Builder Card
-              </Link>
-            ) : (
-              <>
-                <button
-                  onClick={() => loadData(true)}
-                  disabled={refreshing}
-                  className="btn-secondary"
-                >
-                  {refreshing ? "Refreshing..." : "Refresh Matches"}
-                </button>
-                <Link href="/profile?tab=builder" className="btn-secondary">
-                  Update Builder Card
-                </Link>
-              </>
+          <Link href="/login" className="btn-primary">Log in to discover</Link>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // Right rail content
+  const rightRailContent = (
+    <>
+      {/* Saved Builders */}
+      {savedBuilders.length > 0 && (
+        <div className="rail-widget">
+          <div className="rail-widget-header">
+            <h3 className="rail-widget-title">Saved Builders</h3>
+            <span className="text-xs text-slate-500">{savedBuilders.length}</span>
+          </div>
+          <div className="saved-builders-list">
+            {savedBuilders.slice(0, 5).map((builder) => (
+              <SavedBuilderRow
+                key={builder.id}
+                builder={builder}
+                onRemove={() => handleSave(builder.id)}
+                onConnect={() => handleConnect(builder.id)}
+                isPending={pendingIds.has(builder.id)}
+                isConnected={connectedIds.has(builder.id)}
+              />
+            ))}
+            {savedBuilders.length > 5 && (
+              <p className="text-xs text-slate-500 text-center pt-2">
+                +{savedBuilders.length - 5} more saved
+              </p>
             )}
           </div>
         </div>
-      ) : (
-        <div className="discover-grid">
-          {topMatches.map((builder) => (
-            <BuilderCard
-              key={builder.id}
-              builder={builder}
-              onConnect={() => handleConnect(builder.id)}
-              onDismiss={() => handleDismiss(builder.id)}
-              onLessLikeThis={() => handleLessLikeThis(builder.id)}
-              onGenerateIntro={() => handleGenerateIntro(builder)}
-              isConnecting={connectingId === builder.id}
-              isGeneratingIntro={generatingIntroFor === builder.id}
-            />
-          ))}
+      )}
+
+      {/* Community Highlights */}
+      <CommunityHighlights posts={recentPosts} />
+    </>
+  );
+
+  const currentBuilders = activeTab === "for-you" ? forYouMatches : paginatedBuilders;
+
+  return (
+    <AppShell
+      title="Find teammates for your next venture"
+      rightRail={rightRailContent}
+    >
+      {/* Tabs */}
+      <div className="discover-tabs">
+        <button
+          onClick={() => setActiveTab("for-you")}
+          className={`discover-tab ${activeTab === "for-you" ? "discover-tab-active" : ""}`}
+        >
+          For You
+          {forYouMatches.length > 0 && (
+            <span className="discover-tab-count">{forYouMatches.length}</span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("all-builders")}
+          className={`discover-tab ${activeTab === "all-builders" ? "discover-tab-active" : ""}`}
+        >
+          All Builders
+        </button>
+      </div>
+
+      {/* Builder Card Incomplete Notice */}
+      {!hasBuilderCard && (
+        <div className="discover-notice">
+          <svg className="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="flex-1">
+            Complete your Builder Card to get better matches and appear in others' results.
+          </span>
+          <Link href="/profile?tab=builder" className="btn-primary text-sm px-3 py-1.5">
+            Complete Profile
+          </Link>
         </div>
       )}
 
-      {topMatches.length > 0 && topMatches.length < 5 && (
-        <p className="discover-footer-note">
-          Showing {topMatches.length} matches. More will appear as the community grows.
-        </p>
-      )}
+      {/* Empty State */}
+      {currentBuilders.length === 0 ? (
+        <div className="discover-empty">
+          <div className="discover-empty-icon">
+            <svg className="w-12 h-12 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <h2 className="discover-empty-title">
+            {activeTab === "for-you" ? "No matches yet" : "No builders found"}
+          </h2>
+          <p className="discover-empty-text">
+            {activeTab === "for-you"
+              ? !hasBuilderCard
+                ? "Complete your Builder Card to get matched with other builders."
+                : "Try expanding your categories or skills in your profile to find more matches."
+              : "Check back soon as more builders join the community."}
+          </p>
+          {!hasBuilderCard && (
+            <Link href="/profile?tab=builder" className="btn-primary">
+              Complete Builder Card
+            </Link>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Grid */}
+          <div className="discover-grid-v2">
+            {currentBuilders.map((builder) => (
+              <BuilderCard
+                key={builder.id}
+                builder={builder}
+                isSaved={savedIds.has(builder.id)}
+                isPending={pendingIds.has(builder.id)}
+                isConnected={connectedIds.has(builder.id)}
+                onPass={() => handlePass(builder.id)}
+                onConnect={() => handleConnect(builder.id)}
+                onSave={() => handleSave(builder.id)}
+                isConnecting={connectingId === builder.id}
+                showMatchReasons={activeTab === "for-you"}
+              />
+            ))}
+          </div>
 
-      {/* AI Intro Modal */}
-      {introModal && (
-        <IntroModal
-          intro={introModal.intro}
-          targetName={introModal.targetName}
-          error={introModal.error}
-          onClose={() => setIntroModal(null)}
-        />
+          {/* Load More (All Builders only) */}
+          {activeTab === "all-builders" && hasMoreBuilders && (
+            <div className="discover-load-more">
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                className="btn-secondary"
+              >
+                Load More Builders
+              </button>
+            </div>
+          )}
+        </>
       )}
-    </div>
+    </AppShell>
   );
 }

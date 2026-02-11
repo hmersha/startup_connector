@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import AppShell from "@/components/AppShell";
 
 // === CONSTANTS ===
 
@@ -400,57 +401,60 @@ function ProfileContent() {
   // === NOT LOGGED IN ===
   if (authChecked && !user) {
     return (
-      <div className="max-w-xl mx-auto">
-        <div className="card p-8 text-center">
-          <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <svg
-              className="w-6 h-6 text-indigo-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-              />
-            </svg>
+      <AppShell title="Profile">
+        <div className="max-w-md mx-auto">
+          <div className="card p-8 text-center">
+            <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <svg
+                className="w-6 h-6 text-indigo-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-lg font-semibold text-slate-100 mb-2">
+              Sign in to edit your profile
+            </h2>
+            <p className="text-slate-400 mb-6">
+              Customize your profile and connect with other members.
+            </p>
+            <Link href="/login" className="btn-primary inline-block">
+              Log In
+            </Link>
           </div>
-          <h2 className="text-lg font-semibold text-slate-100 mb-2">
-            Sign in to edit your profile
-          </h2>
-          <p className="text-slate-400 mb-6">
-            Customize your profile and connect with other members.
-          </p>
-          <Link href="/login" className="btn-primary inline-block">
-            Log In
-          </Link>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   // === LOADING ===
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="skeleton h-8 w-32" />
-        <div className="skeleton h-12 w-full rounded-lg" />
-        <div className="card p-6 space-y-4">
-          <div className="skeleton h-10 w-full" />
-          <div className="skeleton h-10 w-full" />
-          <div className="skeleton h-10 w-full" />
-          <div className="skeleton h-24 w-full" />
+      <AppShell title="Your Profile">
+        <div className="max-w-2xl space-y-6">
+          <div className="skeleton h-12 w-full rounded-lg" />
+          <div className="card p-6 space-y-4">
+            <div className="skeleton h-10 w-full" />
+            <div className="skeleton h-10 w-full" />
+            <div className="skeleton h-10 w-full" />
+            <div className="skeleton h-24 w-full" />
+          </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   // === MAIN RENDER ===
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="section-header">Your Profile</h1>
+    <AppShell title="Your Profile">
+      <div className="max-w-2xl space-y-6">
 
       {/* Reputation display */}
       <div className="card p-4 flex items-center justify-between">
@@ -823,7 +827,8 @@ function ProfileContent() {
           </button>
         </form>
       )}
-    </div>
+      </div>
+    </AppShell>
   );
 }
 
@@ -831,16 +836,17 @@ function ProfileContent() {
 export default function ProfilePage() {
   return (
     <Suspense fallback={
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="skeleton h-8 w-32" />
-        <div className="skeleton h-12 w-full rounded-lg" />
-        <div className="card p-6 space-y-4">
-          <div className="skeleton h-10 w-full" />
-          <div className="skeleton h-10 w-full" />
-          <div className="skeleton h-10 w-full" />
-          <div className="skeleton h-24 w-full" />
+      <AppShell title="Your Profile">
+        <div className="max-w-2xl space-y-6">
+          <div className="skeleton h-12 w-full rounded-lg" />
+          <div className="card p-6 space-y-4">
+            <div className="skeleton h-10 w-full" />
+            <div className="skeleton h-10 w-full" />
+            <div className="skeleton h-10 w-full" />
+            <div className="skeleton h-24 w-full" />
+          </div>
         </div>
-      </div>
+      </AppShell>
     }>
       <ProfileContent />
     </Suspense>

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import AppShell from "@/components/AppShell";
 
 type Member = {
   id: string;
@@ -337,23 +338,24 @@ function MembersContent() {
 
   if (authChecked && !user) {
     return (
-      <div className="card p-8 text-center">
-        <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-          <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
+      <AppShell title="Members">
+        <div className="card p-8 text-center max-w-md mx-auto">
+          <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold text-slate-100 mb-2">Sign in to view members</h2>
+          <p className="text-slate-400 mb-6">Connect with other CollabSpace members.</p>
+          <Link href="/login" className="btn-primary inline-block">Log In</Link>
         </div>
-        <h2 className="text-lg font-semibold text-slate-100 mb-2">Sign in to view members</h2>
-        <p className="text-slate-400 mb-6">Connect with other CollabSpace members.</p>
-        <Link href="/login" className="btn-primary inline-block">Log In</Link>
-      </div>
+      </AppShell>
     );
   }
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="skeleton h-8 w-32" />
+      <AppShell title="Members">
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="card p-4 flex items-center gap-4">
@@ -365,15 +367,18 @@ function MembersContent() {
             </div>
           ))}
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <AppShell
+      title="Members"
+      subtitle={`${members.length} member${members.length !== 1 ? "s" : ""} in CollabSpace`}
+    >
       {/* Error Toast */}
       {error && (
-        <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300">
+        <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 mb-6">
           <div className="flex items-center gap-3">
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -387,13 +392,6 @@ function MembersContent() {
           </button>
         </div>
       )}
-
-      <div>
-        <h1 className="section-header">Members</h1>
-        <p className="section-subtitle">
-          {members.length} member{members.length !== 1 ? "s" : ""} in CollabSpace
-        </p>
-      </div>
 
       {members.length === 0 ? (
         <div className="card p-8 text-center">
@@ -520,7 +518,7 @@ function MembersContent() {
           })}
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }
 
@@ -528,8 +526,7 @@ function MembersContent() {
 export default function MembersPage() {
   return (
     <Suspense fallback={
-      <div className="space-y-6">
-        <div className="skeleton h-8 w-32" />
+      <AppShell title="Members">
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="card p-4 flex items-center gap-4">
@@ -541,7 +538,7 @@ export default function MembersPage() {
             </div>
           ))}
         </div>
-      </div>
+      </AppShell>
     }>
       <MembersContent />
     </Suspense>

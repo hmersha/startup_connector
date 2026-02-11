@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import AppShell from "@/components/AppShell";
 
 type Conversation = {
   id: string;
@@ -137,39 +138,40 @@ export default function MessagesPage() {
 
   if (authChecked && !user) {
     return (
-      <div className="card p-8 text-center">
-        <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-          <svg
-            className="w-6 h-6 text-indigo-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-            />
-          </svg>
+      <AppShell title="Messages">
+        <div className="card p-8 text-center max-w-md mx-auto">
+          <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <svg
+              className="w-6 h-6 text-indigo-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold text-slate-100 mb-2">
+            Sign in to view messages
+          </h2>
+          <p className="text-slate-400 mb-6">
+            Send and receive direct messages with other members.
+          </p>
+          <Link href="/login" className="btn-primary inline-block">
+            Log In
+          </Link>
         </div>
-        <h2 className="text-lg font-semibold text-slate-100 mb-2">
-          Sign in to view messages
-        </h2>
-        <p className="text-slate-400 mb-6">
-          Send and receive direct messages with other members.
-        </p>
-        <Link href="/login" className="btn-primary inline-block">
-          Log In
-        </Link>
-      </div>
+      </AppShell>
     );
   }
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="skeleton h-8 w-32" />
+      <AppShell title="Messages">
         <div className="card divide-y divide-slate-700/50">
           {[1, 2, 3].map((i) => (
             <div key={i} className="p-4 flex items-center gap-4">
@@ -181,14 +183,13 @@ export default function MessagesPage() {
             </div>
           ))}
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="section-header">Messages</h1>
+    <AppShell title="Messages">
+      <div className="flex items-center justify-end -mt-4 mb-6">
         <Link
           href="/members"
           className="text-sm text-indigo-400 hover:text-indigo-300"
@@ -285,6 +286,6 @@ export default function MessagesPage() {
           ))}
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }

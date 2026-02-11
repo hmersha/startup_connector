@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import AppShell from "@/components/AppShell";
 
 type ConnectionUser = {
   id: string;
@@ -215,24 +216,25 @@ export default function ConnectionsPage() {
 
   if (authChecked && !user) {
     return (
-      <div className="card p-8 text-center">
-        <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-          <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
+      <AppShell title="Connections">
+        <div className="card p-8 text-center max-w-md mx-auto">
+          <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold text-slate-100 mb-2">Sign in to view connections</h2>
+          <p className="text-slate-400 mb-6">Manage your network and connection requests.</p>
+          <Link href="/login" className="btn-primary inline-block">Log In</Link>
         </div>
-        <h2 className="text-lg font-semibold text-slate-100 mb-2">Sign in to view connections</h2>
-        <p className="text-slate-400 mb-6">Manage your network and connection requests.</p>
-        <Link href="/login" className="btn-primary inline-block">Log In</Link>
-      </div>
+      </AppShell>
     );
   }
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="skeleton h-8 w-40" />
-        <div className="flex gap-2">
+      <AppShell title="Connections" subtitle="Manage your network and connection requests">
+        <div className="flex gap-2 mb-6">
           <div className="skeleton h-10 w-28 rounded-lg" />
           <div className="skeleton h-10 w-28 rounded-lg" />
           <div className="skeleton h-10 w-28 rounded-lg" />
@@ -248,7 +250,7 @@ export default function ConnectionsPage() {
             </div>
           ))}
         </div>
-      </div>
+      </AppShell>
     );
   }
 
@@ -259,10 +261,10 @@ export default function ConnectionsPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <AppShell title="Connections" subtitle="Manage your network and connection requests">
       {/* Error Toast */}
       {error && (
-        <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300">
+        <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 mb-6">
           <div className="flex items-center gap-3">
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -276,12 +278,6 @@ export default function ConnectionsPage() {
           </button>
         </div>
       )}
-
-      {/* Header */}
-      <div>
-        <h1 className="section-header">Connections</h1>
-        <p className="section-subtitle">Manage your network and connection requests</p>
-      </div>
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-slate-700/50 pb-4">
@@ -474,6 +470,6 @@ export default function ConnectionsPage() {
           )}
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }
