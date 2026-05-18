@@ -540,7 +540,7 @@ export default function DiscoverPage() {
     }
 
     if (postsResult.data) {
-      setRecentPosts(postsResult.data as RecentPost[]);
+      setRecentPosts(postsResult.data as unknown as RecentPost[]);
     }
 
     setLoading(false);
