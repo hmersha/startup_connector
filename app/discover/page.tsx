@@ -46,7 +46,7 @@ type RecentPost = {
   title: string;
   category: string;
   created_at: string;
-  users: { name: string; username: string | null } | null;
+  users: { name: string; username: string | null }[];
 };
 
 type ScoredBuilder = BuilderProfile & {
@@ -417,7 +417,7 @@ function CommunityHighlights({ posts }: { posts: RecentPost[] }) {
             </div>
             <h4 className="community-post-title">{post.title}</h4>
             <p className="community-post-author">
-              by {post.users?.username || post.users?.name || "Someone"}
+              by {post.users?.[0]?.username || post.users?.[0]?.name || "Someone"}
             </p>
           </Link>
         ))}
