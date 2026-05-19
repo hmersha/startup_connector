@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import AppShell from "@/components/AppShell";
+import ProposeSprintModal from "@/components/ProposeSprintModal";
 
 // === TYPES ===
 
@@ -24,6 +25,14 @@ type BuilderProfile = {
   availability: string | null;
   visibility: string;
   last_active_at: string | null;
+  // Signal fields
+  project_name: string | null;
+  traction_signal: string | null;
+  collaboration_intent: string | null;
+  commitment_level: string | null;
+  working_style: string | null;
+  equity_intent: string | null;
+  timezone: string | null;
 };
 
 type Connection = {
@@ -193,6 +202,15 @@ function formatTimeAgo(dateString: string): string {
 
 // === BUILDER CARD COMPONENT ===
 
+const COLLAB_INTENT_LABELS: Record<string, string> = {
+  equal_cofounder: "Equal Cofounder",
+  trial_collaboration: "Trial Collaboration",
+  founding_teammate: "Founding Teammate",
+  advisor_mentor: "Advisor / Mentor",
+  feedback_only: "Feedback Only",
+  project_collaborator: "Project Collaborator",
+};
+
 function BuilderCard({
   builder,
   isSaved,
@@ -201,6 +219,7 @@ function BuilderCard({
   onPass,
   onConnect,
   onSave,
+  onProposeSprint,
   isConnecting,
   showMatchReasons = false,
 }: {
@@ -211,6 +230,7 @@ function BuilderCard({
   onPass: () => void;
   onConnect: () => void;
   onSave: () => void;
+  onProposeSprint: () => void;
   isConnecting: boolean;
   showMatchReasons?: boolean;
 }) {
@@ -219,6 +239,13 @@ function BuilderCard({
   const isPrivate = builder.visibility === "private";
   const showDetails = !isPrivate || isConnected;
   const scoredBuilder = "matchReasons" in builder ? builder : null;
+
+  const isActiveBuilder =
+    builder.last_active_at &&
+    (Date.now() - new Date(builder.last_active_at).getTime()) / 86400000 < 7;
+  const hasClearIntent = Boolean(builder.collaboration_intent);
+  const hasProject = Boolean(builder.project_name);
+  const hasTraction = Boolean(builder.traction_signal);
 
   return (
     <div className="discover-card-v2">
@@ -229,7 +256,10 @@ function BuilderCard({
         </div>
         <div className="discover-card-info">
           <h3 className="discover-card-name">{displayName}</h3>
-          {showDetails && builder.school && (
+          {showDetails && builder.project_name && (
+            <p className="builder-project-name">{builder.project_name}</p>
+          )}
+          {showDetails && !builder.project_name && builder.school && (
             <p className="discover-card-school">{builder.school}</p>
           )}
         </div>
@@ -238,21 +268,20 @@ function BuilderCard({
           className={`discover-save-btn ${isSaved ? "discover-save-btn-active" : ""}`}
           title={isSaved ? "Remove from saved" : "Save builder"}
         >
-          <svg
-            className="w-5 h-5"
-            fill={isSaved ? "currentColor" : "none"}
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-            />
+          <svg className="w-5 h-5" fill={isSaved ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>
         </button>
       </div>
+
+      {/* Trust badges */}
+      {showDetails && (isActiveBuilder || hasClearIntent || hasProject) && (
+        <div className="builder-trust-badges">
+          {isActiveBuilder && <span className="trust-badge trust-badge-active">Active this week</span>}
+          {hasClearIntent && <span className="trust-badge trust-badge-intent">Clear intent</span>}
+          {hasProject && hasTraction && <span className="trust-badge trust-badge-momentum">Has momentum</span>}
+        </div>
+      )}
 
       {/* One-liner */}
       {showDetails && builder.one_liner ? (
@@ -263,14 +292,31 @@ function BuilderCard({
         <p className="discover-card-empty">No bio yet</p>
       ) : null}
 
-      {/* Stage Badge */}
-      {showDetails && builder.stage && (
+      {/* Traction signal */}
+      {showDetails && builder.traction_signal && (
+        <p className="builder-traction-signal">
+          <svg className="w-3 h-3 text-emerald-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clipRule="evenodd" />
+          </svg>
+          {builder.traction_signal}
+        </p>
+      )}
+
+      {/* Stage + collaboration intent */}
+      {showDetails && (builder.stage || builder.collaboration_intent) && (
         <div className="discover-card-stage">
-          <span className={`discover-stage-badge discover-stage-${builder.stage}`}>
-            {builder.stage}
-          </span>
-          {builder.availability && (
-            <span className="discover-availability">{builder.availability}</span>
+          {builder.stage && (
+            <span className={`discover-stage-badge discover-stage-${builder.stage}`}>
+              {builder.stage}
+            </span>
+          )}
+          {builder.collaboration_intent && (
+            <span className="builder-intent-badge">
+              {COLLAB_INTENT_LABELS[builder.collaboration_intent] ?? builder.collaboration_intent}
+            </span>
+          )}
+          {builder.commitment_level && (
+            <span className="discover-availability">{builder.commitment_level}</span>
           )}
         </div>
       )}
@@ -279,29 +325,18 @@ function BuilderCard({
       {showDetails && (
         <div className="discover-card-chips">
           {builder.categories.slice(0, 2).map((cat) => (
-            <span key={cat} className="discover-chip discover-chip-category">
-              {cat}
-            </span>
+            <span key={cat} className="discover-chip discover-chip-category">{cat}</span>
           ))}
           {builder.looking_for.slice(0, 2).map((lf) => (
-            <span key={lf} className="discover-chip discover-chip-looking">
-              {lf}
-            </span>
+            <span key={lf} className="discover-chip discover-chip-looking">{lf}</span>
           ))}
           {builder.skills.slice(0, 1).map((skill) => (
-            <span key={skill} className="discover-chip discover-chip-skill">
-              {skill}
-            </span>
+            <span key={skill} className="discover-chip discover-chip-skill">{skill}</span>
           ))}
-          {(builder.categories.length + builder.looking_for.length + builder.skills.length > 5) && (
-            <span className="discover-chip-more">
-              +{builder.categories.length + builder.looking_for.length + builder.skills.length - 5}
-            </span>
-          )}
         </div>
       )}
 
-      {/* Match Reasons (For You tab only) */}
+      {/* Match Reasons */}
       {showMatchReasons && scoredBuilder && scoredBuilder.matchReasons.length > 0 && (
         <div className="discover-card-reasons">
           {scoredBuilder.matchReasons.slice(0, 2).map((reason, i) => (
@@ -318,24 +353,26 @@ function BuilderCard({
       {/* Actions */}
       <div className="discover-card-actions">
         {isConnected ? (
-          <Link href="/messages" className="discover-action-btn discover-action-message">
-            Message
-          </Link>
-        ) : isPending ? (
-          <span className="discover-action-pending">Request Sent</span>
+          <Link href="/messages" className="discover-action-btn discover-action-message">Message</Link>
         ) : (
-          <>
-            <button onClick={onPass} className="discover-action-btn discover-action-pass">
-              Pass
+          <div className="discover-actions-v2">
+            <button onClick={onProposeSprint} className="sprint-propose-btn">
+              Propose Sprint
             </button>
-            <button
-              onClick={onConnect}
-              disabled={isConnecting}
-              className="discover-action-btn discover-action-connect"
-            >
-              {isConnecting ? "..." : "Connect"}
-            </button>
-          </>
+            <div className="discover-secondary-actions">
+              {isPending ? (
+                <span className="discover-action-pending text-xs">Sent</span>
+              ) : (
+                <button onClick={onConnect} disabled={isConnecting} className="discover-action-sm discover-action-connect">
+                  {isConnecting ? "..." : "Connect"}
+                </button>
+              )}
+              <button onClick={onPass} className="discover-action-sm discover-action-pass">Pass</button>
+              <button onClick={onSave} className={`discover-action-sm ${isSaved ? "text-indigo-400" : "text-slate-500"}`}>
+                {isSaved ? "Saved" : "Save"}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -443,6 +480,7 @@ export default function DiscoverPage() {
   const [activeTab, setActiveTab] = useState<Tab>("for-you");
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [passedIds, setPassedIds] = useState<Set<string>>(new Set());
+  const [sprintModalBuilder, setSprintModalBuilder] = useState<BuilderProfile | null>(null);
 
   // Pagination for All Builders
   const [page, setPage] = useState(1);
@@ -806,6 +844,7 @@ export default function DiscoverPage() {
   const currentBuilders = activeTab === "for-you" ? forYouMatches : paginatedBuilders;
 
   return (
+    <>
     <AppShell
       title="Find teammates for your next venture"
       rightRail={rightRailContent}
@@ -882,6 +921,7 @@ export default function DiscoverPage() {
                 onPass={() => handlePass(builder.id)}
                 onConnect={() => handleConnect(builder.id)}
                 onSave={() => handleSave(builder.id)}
+                onProposeSprint={() => setSprintModalBuilder(builder)}
                 isConnecting={connectingId === builder.id}
                 showMatchReasons={activeTab === "for-you"}
               />
@@ -902,5 +942,14 @@ export default function DiscoverPage() {
         </>
       )}
     </AppShell>
+
+    {sprintModalBuilder && user && (
+      <ProposeSprintModal
+        builder={sprintModalBuilder}
+        currentUserId={user.id}
+        onClose={() => setSprintModalBuilder(null)}
+      />
+    )}
+    </>
   );
 }

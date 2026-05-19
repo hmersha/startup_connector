@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, KeyboardEvent } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import AppShell from "@/components/AppShell";
 
 // === TYPES ===
 
@@ -15,24 +14,45 @@ type Post = {
   category: string;
   created_at: string;
   author_id: string;
-  users?: { name: string; email: string; username: string | null } | null;
+  users?: { id: string; name: string; email: string; username: string | null } | null;
+};
+
+type Comment = {
+  id: string;
+  post_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  users?: { name: string; username: string | null } | null;
 };
 
 type PostWithMeta = Post & {
   commentCount: number;
   timeAgo: string;
-  dayGroup: string;
   isFromConnection: boolean;
 };
 
-type SavedBuilder = {
+type BuilderMatch = {
   id: string;
   username: string | null;
   name: string | null;
-  stage: string | null;
+  one_liner: string | null;
+  categories: string[];
+  looking_for: string[];
+  skills: string[];
 };
 
-type FilterType = "all" | "idea" | "feedback" | "question" | "showcase" | "connections";
+type UserProfile = {
+  id: string;
+  reputation: number;
+  categories: string[];
+  looking_for: string[];
+  skills: string[];
+};
+
+type ReactionType = "interested" | "useful" | "curious";
+
+type FeedbackStatus = "idle" | "saving" | "success" | "error";
 
 // === HELPERS ===
 
@@ -45,24 +65,11 @@ function formatTimeAgo(dateString: string): string {
   const diffDays = Math.floor(diffMs / 86400000);
 
   if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays === 1) return "yesterday";
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffMins < 60) return `${diffMins}m`;
+  if (diffHours < 24) return `${diffHours}h`;
+  if (diffDays === 1) return "1d";
+  if (diffDays < 7) return `${diffDays}d`;
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function getDayGroup(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const postDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-  if (postDay.getTime() === today.getTime()) return "Today";
-  if (postDay.getTime() === yesterday.getTime()) return "Yesterday";
-  return date.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
 }
 
 function getGreeting(): string {
@@ -72,27 +79,150 @@ function getGreeting(): string {
   return "Good evening";
 }
 
+function findOverlaps(user: UserProfile, builder: BuilderMatch): string[] {
+  const overlaps: string[] = [];
+  const userCats = new Set(user.categories || []);
+  const userSkills = new Set(user.skills || []);
+
+  builder.categories?.forEach(c => {
+    if (userCats.has(c)) overlaps.push(c);
+  });
+  builder.skills?.forEach(s => {
+    if (userSkills.has(s)) overlaps.push(s);
+  });
+
+  return overlaps.slice(0, 2);
+}
+
 // === TOAST SYSTEM ===
 
-type Toast = {
-  id: string;
-  message: string;
-  type: "success" | "info";
-};
+type Toast = { id: string; message: string; type: "success" | "info" | "error" };
 
 function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: string) => void }) {
   return (
-    <div className="toast-container">
+    <div className="hub-toast-container">
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`toast toast-${toast.type}`}
+          className={`hub-toast hub-toast-${toast.type}`}
           onClick={() => onDismiss(toast.id)}
+          role="alert"
+          aria-live="polite"
         >
-          <span className="toast-icon">{toast.type === "success" ? "✓" : "ℹ"}</span>
-          <span className="toast-message">{toast.message}</span>
+          <span className="hub-toast-icon">
+            {toast.type === "success" ? "✓" : toast.type === "error" ? "!" : "•"}
+          </span>
+          <span className="hub-toast-message">{toast.message}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+// === SKELETON COMPONENTS ===
+
+function SkeletonPulse({ className = "" }: { className?: string }) {
+  return <div className={`hub-skeleton ${className}`} />;
+}
+
+function FeedbackCardSkeleton() {
+  return (
+    <div className="hub-feedback-card hub-feedback-card-skeleton">
+      <div className="hub-feedback-top">
+        <SkeletonPulse className="w-14 h-4 rounded" />
+        <SkeletonPulse className="w-8 h-3 rounded" />
+      </div>
+      <SkeletonPulse className="w-full h-4 rounded mb-2" />
+      <SkeletonPulse className="w-3/4 h-3 rounded mb-1" />
+      <SkeletonPulse className="w-1/2 h-3 rounded mb-3" />
+      <div className="hub-feedback-footer">
+        <SkeletonPulse className="w-20 h-3 rounded" />
+        <SkeletonPulse className="w-12 h-3 rounded" />
+      </div>
+    </div>
+  );
+}
+
+function PostSkeleton() {
+  return (
+    <div className="hub-post hub-post-skeleton">
+      <div className="hub-post-main">
+        <SkeletonPulse className="w-8 h-8 rounded-full flex-shrink-0" />
+        <div className="hub-post-content">
+          <div className="hub-post-meta mb-2">
+            <SkeletonPulse className="w-24 h-3 rounded" />
+            <SkeletonPulse className="w-8 h-3 rounded" />
+            <SkeletonPulse className="w-14 h-4 rounded" />
+          </div>
+          <SkeletonPulse className="w-3/4 h-4 rounded mb-2" />
+          <SkeletonPulse className="w-full h-3 rounded mb-1" />
+          <SkeletonPulse className="w-2/3 h-3 rounded" />
+        </div>
+      </div>
+      <div className="hub-post-actions">
+        <div className="hub-reactions">
+          <SkeletonPulse className="w-7 h-7 rounded" />
+          <SkeletonPulse className="w-7 h-7 rounded" />
+          <SkeletonPulse className="w-7 h-7 rounded" />
+        </div>
+        <SkeletonPulse className="w-10 h-6 rounded" />
+      </div>
+    </div>
+  );
+}
+
+function MatchCardSkeleton() {
+  return (
+    <div className="hub-match-card hub-match-card-skeleton">
+      <div className="hub-match-main">
+        <SkeletonPulse className="w-10 h-10 rounded-full flex-shrink-0" />
+        <div className="hub-match-info">
+          <SkeletonPulse className="w-24 h-4 rounded mb-1" />
+          <SkeletonPulse className="w-32 h-3 rounded" />
+        </div>
+      </div>
+      <div className="hub-match-actions">
+        <SkeletonPulse className="w-6 h-6 rounded" />
+        <SkeletonPulse className="w-16 h-6 rounded" />
+      </div>
+    </div>
+  );
+}
+
+function ModuleSkeleton({ lines = 3 }: { lines?: number }) {
+  return (
+    <div className="hub-module hub-module-skeleton">
+      <div className="hub-module-header">
+        <SkeletonPulse className="w-28 h-4 rounded" />
+      </div>
+      <div className="space-y-2">
+        {Array.from({ length: lines }).map((_, i) => (
+          <SkeletonPulse key={i} className="w-full h-8 rounded" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// === EMPTY STATE COMPONENTS ===
+
+function EmptyState({
+  icon,
+  title,
+  description,
+  actions,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <div className="hub-empty-state">
+      <div className="hub-empty-icon">{icon}</div>
+      <h3 className="hub-empty-title">{title}</h3>
+      <p className="hub-empty-description">{description}</p>
+      {actions && <div className="hub-empty-actions">{actions}</div>}
     </div>
   );
 }
@@ -100,34 +230,57 @@ function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id
 // === MAIN COMPONENT ===
 
 export default function FeedPage() {
+  // Core state
+  const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<PostWithMeta[]>([]);
   const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [userReputation, setUserReputation] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
-  const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  // Search & Filter
+  // Search with debounce
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Right rail data
-  const [savedBuilders, setSavedBuilders] = useState<SavedBuilder[]>([]);
+  // Post detail panel (right rail)
+  const [selectedPost, setSelectedPost] = useState<PostWithMeta | null>(null);
+  const [postComments, setPostComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
+
+  // Reactions (stored in localStorage for now, used as signals)
+  const [reactions, setReactions] = useState<Record<string, ReactionType>>({});
+
+  // Builder matches for rail
+  const [builderMatches, setBuilderMatches] = useState<BuilderMatch[]>([]);
+  const [dismissedBuilders, setDismissedBuilders] = useState<Set<string>>(new Set());
+  const [connectingId, setConnectingId] = useState<string | null>(null);
+
+  // My pending posts
   const [myPendingPosts, setMyPendingPosts] = useState<PostWithMeta[]>([]);
 
-  // Live presence data
+  // Presence stats
   const [activeNow, setActiveNow] = useState(0);
   const [ideasToday, setIdeasToday] = useState(0);
-  const [connectionsMade, setConnectionsMade] = useState(0);
+  const [newConnections, setNewConnections] = useState(0);
 
-  // Streak data
+  // Streak
   const [streak, setStreak] = useState(0);
 
+
+  // Comment submission status
+  const [commentStatus, setCommentStatus] = useState<FeedbackStatus>("idle");
+
+  // Reaction feedback status
+  const [reactionStatus, setReactionStatus] = useState<Record<string, FeedbackStatus>>({});
+
   // Toast helper
-  const showToast = useCallback((message: string, type: "success" | "info" = "success") => {
+  const showToast = useCallback((message: string, type: "success" | "info" | "error" = "success") => {
     const id = Date.now().toString();
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3000);
@@ -158,7 +311,6 @@ export default function FeedPage() {
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
 
-      // Parallel data fetching
       const [
         postsResult,
         commentsResult,
@@ -167,22 +319,21 @@ export default function FeedPage() {
         activeResult,
         ideasTodayResult,
         connectionsWeekResult,
-        savedBuildersResult,
+        matchCandidatesResult,
       ] = await Promise.all([
         supabase
           .from("posts")
-          .select("*, users(name, email, username)")
+          .select("*, users(id, name, email, username)")
           .order("created_at", { ascending: false })
           .limit(50),
         supabase.from("comments").select("id, post_id"),
         supabase
           .from("connections")
-          .select("requester_id, addressee_id")
-          .or(`requester_id.eq.${currentUser.id},addressee_id.eq.${currentUser.id}`)
-          .eq("status", "accepted"),
+          .select("requester_id, addressee_id, status")
+          .or(`requester_id.eq.${currentUser.id},addressee_id.eq.${currentUser.id}`),
         supabase
           .from("users")
-          .select("reputation")
+          .select("id, reputation, categories, looking_for, skills")
           .eq("id", currentUser.id)
           .single(),
         supabase
@@ -200,18 +351,23 @@ export default function FeedPage() {
           .eq("status", "accepted")
           .gte("created_at", weekAgo.toISOString()),
         supabase
-          .from("saved_builders")
-          .select("saved_user_id, users:saved_user_id(id, username, name, stage)")
-          .eq("user_id", currentUser.id)
-          .limit(5),
+          .from("users")
+          .select("id, username, name, one_liner, categories, looking_for, skills")
+          .neq("id", currentUser.id)
+          .in("visibility", ["public", "match_only"])
+          .limit(20),
       ]);
 
-      // Build connected IDs set
+      // Build connection sets
       const connIds = new Set<string>();
+      const pendIds = new Set<string>();
       connectionsResult.data?.forEach((conn) => {
-        connIds.add(conn.requester_id === currentUser.id ? conn.addressee_id : conn.requester_id);
+        const otherId = conn.requester_id === currentUser.id ? conn.addressee_id : conn.requester_id;
+        if (conn.status === "accepted") connIds.add(otherId);
+        else if (conn.status === "pending") pendIds.add(otherId);
       });
       setConnectedIds(connIds);
+      setPendingIds(pendIds);
 
       // Process posts
       if (!postsResult.error && postsResult.data) {
@@ -224,39 +380,39 @@ export default function FeedPage() {
           ...post,
           commentCount: commentCounts.get(post.id) || 0,
           timeAgo: formatTimeAgo(post.created_at),
-          dayGroup: getDayGroup(post.created_at),
           isFromConnection: connIds.has(post.author_id),
         }));
         setPosts(postsWithMeta);
 
-        // My posts waiting for feedback
         const myPending = postsWithMeta.filter(
           (p) => p.author_id === currentUser.id && p.commentCount === 0
         );
         setMyPendingPosts(myPending);
       }
 
-      if (profileResult.data) setUserReputation(profileResult.data.reputation);
+      if (profileResult.data) {
+        setUserProfile(profileResult.data as UserProfile);
+      }
+
+      // Builder matches (filter out connected/pending)
+      if (matchCandidatesResult.data) {
+        const filtered = matchCandidatesResult.data.filter(
+          (b) => !connIds.has(b.id) && !pendIds.has(b.id)
+        );
+        setBuilderMatches(filtered.slice(0, 5) as BuilderMatch[]);
+      }
 
       // Presence stats
       setActiveNow(activeResult.count ?? Math.floor(Math.random() * 8) + 3);
       setIdeasToday(ideasTodayResult.count ?? 0);
-      setConnectionsMade(connectionsWeekResult.count ?? 0);
+      setNewConnections(connectionsWeekResult.count ?? 0);
 
-      // Saved builders
-      if (savedBuildersResult.data) {
-        const builders = savedBuildersResult.data
-          .map((row) => row.users as unknown as SavedBuilder)
-          .filter(Boolean);
-        setSavedBuilders(builders);
-      }
-
-      // Load saved posts from localStorage
-      const savedKey = `startup-connector-saved-${currentUser.id}`;
-      const saved = localStorage.getItem(savedKey);
-      if (saved) {
+      // Load reactions from localStorage
+      const reactionsKey = `hub-reactions-${currentUser.id}`;
+      const savedReactions = localStorage.getItem(reactionsKey);
+      if (savedReactions) {
         try {
-          setSavedPostIds(new Set(JSON.parse(saved)));
+          setReactions(JSON.parse(savedReactions));
         } catch {}
       }
 
@@ -286,22 +442,39 @@ export default function FeedPage() {
     loadData();
   }, []);
 
-  // === SEARCH ===
+  // === DEBOUNCED SEARCH ===
 
-  const handleSearch = useCallback(
-    async (query: string) => {
-      if (!user || !query.trim()) {
-        setSearchQuery("");
-        return;
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (!searchQuery.trim()) {
+      setDebouncedQuery("");
+      return;
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 300);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
       }
+    };
+  }, [searchQuery]);
+
+  useEffect(() => {
+    async function performSearch() {
+      if (!user || !debouncedQuery.trim()) return;
 
       setIsSearching(true);
-      setSearchQuery(query);
 
       const { data } = await supabase
         .from("posts")
-        .select("*, users(name, email, username)")
-        .or(`title.ilike.%${query}%,body.ilike.%${query}%,category.ilike.%${query}%`)
+        .select("*, users(id, name, email, username)")
+        .or(`title.ilike.%${debouncedQuery}%,body.ilike.%${debouncedQuery}%,category.ilike.%${debouncedQuery}%`)
         .order("created_at", { ascending: false })
         .limit(30);
 
@@ -320,26 +493,27 @@ export default function FeedPage() {
           ...post,
           commentCount: commentCounts.get(post.id) || 0,
           timeAgo: formatTimeAgo(post.created_at),
-          dayGroup: getDayGroup(post.created_at),
           isFromConnection: connectedIds.has(post.author_id),
         }));
         setPosts(postsWithMeta);
       }
 
       setIsSearching(false);
-    },
-    [user, connectedIds]
-  );
+    }
+
+    performSearch();
+  }, [debouncedQuery, user, connectedIds]);
 
   const clearSearch = useCallback(async () => {
     setSearchQuery("");
-    setActiveFilter("all");
+    setDebouncedQuery("");
+    setSelectedPost(null);
 
     if (!user) return;
 
     const { data } = await supabase
       .from("posts")
-      .select("*, users(name, email, username)")
+      .select("*, users(id, name, email, username)")
       .order("created_at", { ascending: false })
       .limit(50);
 
@@ -358,7 +532,6 @@ export default function FeedPage() {
         ...post,
         commentCount: commentCounts.get(post.id) || 0,
         timeAgo: formatTimeAgo(post.created_at),
-        dayGroup: getDayGroup(post.created_at),
         isFromConnection: connectedIds.has(post.author_id),
       }));
       setPosts(postsWithMeta);
@@ -367,7 +540,6 @@ export default function FeedPage() {
 
   // === DERIVED DATA ===
 
-  // "Needs Feedback" - posts with 0-1 comments, not by viewer
   const needsFeedback = useMemo(() => {
     if (!user) return [];
     return posts
@@ -375,441 +547,728 @@ export default function FeedPage() {
       .slice(0, 4);
   }, [posts, user]);
 
-  // Filtered posts for "Recent Activity"
-  const filteredPosts = useMemo(() => {
+  const activityPosts = useMemo(() => {
     if (!user) return [];
+    return posts.filter((p) => p.author_id !== user.id || p.commentCount > 1);
+  }, [posts, user]);
 
-    let filtered = posts.filter((p) => p.author_id !== user.id || p.commentCount > 1);
+  const visibleMatches = useMemo(() => {
+    return builderMatches.filter((b) => !dismissedBuilders.has(b.id));
+  }, [builderMatches, dismissedBuilders]);
 
-    if (activeFilter === "connections") {
-      filtered = filtered.filter((p) => p.isFromConnection);
-    } else if (activeFilter !== "all") {
-      filtered = filtered.filter((p) => p.category === activeFilter);
+  // === POST DETAIL PANEL ===
+
+  const openPostDetail = useCallback(async (post: PostWithMeta) => {
+    setSelectedPost(post);
+    setLoadingComments(true);
+    setPostComments([]);
+
+    const { data } = await supabase
+      .from("comments")
+      .select("*, users(name, username)")
+      .eq("post_id", post.id)
+      .order("created_at", { ascending: true });
+
+    if (data) {
+      setPostComments(data as Comment[]);
+    }
+    setLoadingComments(false);
+  }, []);
+
+  const closePostDetail = useCallback(() => {
+    setSelectedPost(null);
+    setPostComments([]);
+    setNewComment("");
+  }, []);
+
+  const submitComment = useCallback(async () => {
+    if (!user || !selectedPost || !newComment.trim()) return;
+
+    setSubmittingComment(true);
+    setCommentStatus("saving");
+
+    const { data, error } = await supabase
+      .from("comments")
+      .insert({
+        post_id: selectedPost.id,
+        author_id: user.id,
+        body: newComment.trim(),
+      })
+      .select("*, users(name, username)")
+      .single();
+
+    if (!error && data) {
+      setPostComments((prev) => [...prev, data as Comment]);
+      setNewComment("");
+      setCommentStatus("success");
+      showToast("Comment posted", "success");
+
+      // Update comment count in posts
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === selectedPost.id ? { ...p, commentCount: p.commentCount + 1 } : p
+        )
+      );
+
+      // Reset status after brief feedback
+      setTimeout(() => setCommentStatus("idle"), 1500);
+    } else {
+      setCommentStatus("error");
+      showToast("Failed to post comment", "error");
+      setTimeout(() => setCommentStatus("idle"), 2000);
     }
 
-    return filtered;
-  }, [posts, activeFilter, user]);
+    setSubmittingComment(false);
+  }, [user, selectedPost, newComment, showToast]);
 
-  // Group by day
-  const groupedPosts = useMemo(() => {
-    const groups: Record<string, PostWithMeta[]> = {};
-    filteredPosts.forEach((post) => {
-      if (!groups[post.dayGroup]) {
-        groups[post.dayGroup] = [];
+  // === REACTIONS ===
+
+  const handleReaction = useCallback(
+    (postId: string, reaction: ReactionType) => {
+      if (!user) return;
+
+      // Show brief visual feedback
+      setReactionStatus((prev) => ({ ...prev, [postId]: "saving" }));
+
+      setReactions((prev) => {
+        const current = prev[postId];
+        const next = current === reaction ? undefined : reaction;
+        const updated = { ...prev };
+        if (next) {
+          updated[postId] = next;
+        } else {
+          delete updated[postId];
+        }
+        localStorage.setItem(`hub-reactions-${user.id}`, JSON.stringify(updated));
+        return updated;
+      });
+
+      // Brief success feedback
+      setTimeout(() => {
+        setReactionStatus((prev) => ({ ...prev, [postId]: "success" }));
+        setTimeout(() => {
+          setReactionStatus((prev) => ({ ...prev, [postId]: "idle" }));
+        }, 300);
+      }, 100);
+    },
+    [user]
+  );
+
+  // === BUILDER ACTIONS ===
+
+  const handleConnect = useCallback(
+    async (builderId: string) => {
+      if (!user) return;
+      setConnectingId(builderId);
+
+      const { error } = await supabase.from("connections").insert({
+        requester_id: user.id,
+        addressee_id: builderId,
+        status: "pending",
+      });
+
+      if (!error) {
+        setPendingIds((prev) => new Set([...prev, builderId]));
+        showToast("Connection request sent", "success");
       }
-      groups[post.dayGroup].push(post);
-    });
-    return groups;
-  }, [filteredPosts]);
 
-  // === ACTIONS ===
+      setConnectingId(null);
+    },
+    [user, showToast]
+  );
 
-  function toggleSave(postId: string) {
-    if (!user) return;
-    setSavedPostIds((prev) => {
-      const next = new Set(prev);
-      const wasSaved = next.has(postId);
-      wasSaved ? next.delete(postId) : next.add(postId);
-      localStorage.setItem(`startup-connector-saved-${user.id}`, JSON.stringify([...next]));
-      showToast(wasSaved ? "Removed from saved" : "Saved for later", "success");
-      return next;
-    });
-  }
+  const handleDismissBuilder = useCallback((builderId: string) => {
+    setDismissedBuilders((prev) => new Set([...prev, builderId]));
+  }, []);
+
+  // === KEYBOARD HANDLERS ===
+
+  const handleSearchKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      clearSearch();
+      (e.target as HTMLInputElement).blur();
+    }
+  }, [clearSearch]);
+
 
   // === LOADING STATE ===
+
   if (loading) {
     return (
-      <AppShell
-        rightRail={
-          <div className="space-y-5">
-            <div className="skeleton h-32 rounded-xl" />
-            <div className="skeleton h-40 rounded-xl" />
-            <div className="skeleton h-32 rounded-xl" />
+      <div className="hub-shell">
+        {/* Skeleton Header */}
+        <header className="hub-header">
+          <div className="hub-header-left">
+            <SkeletonPulse className="w-32 h-6 rounded" />
+            <div className="hub-pulse">
+              <SkeletonPulse className="w-20 h-4 rounded" />
+              <span className="hub-pulse-sep">·</span>
+              <SkeletonPulse className="w-16 h-4 rounded" />
+              <span className="hub-pulse-sep">·</span>
+              <SkeletonPulse className="w-24 h-4 rounded" />
+            </div>
           </div>
-        }
-      >
-        <div className="space-y-6">
-          {/* Header skeleton */}
-          <div className="flex items-center justify-between">
-            <div className="skeleton h-8 w-48" />
-            <div className="skeleton h-8 w-64 rounded-full" />
+          <div className="hub-header-right">
+            <SkeletonPulse className="w-48 h-10 rounded-lg" />
+            <SkeletonPulse className="w-28 h-10 rounded-lg" />
           </div>
-          {/* Search skeleton */}
-          <div className="skeleton h-12 rounded-xl" />
-          {/* Tiles skeleton */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="skeleton h-20 rounded-xl" />
-            ))}
-          </div>
-          {/* Posts skeleton */}
-          <div className="space-y-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="skeleton h-28 rounded-xl" />
-            ))}
-          </div>
+        </header>
+
+        <div className="hub-grid">
+          <main className="hub-main">
+            {/* Needs Feedback Section Skeleton */}
+            <section className="hub-section">
+              <div className="hub-section-header">
+                <SkeletonPulse className="w-28 h-4 rounded" />
+                <SkeletonPulse className="w-24 h-3 rounded" />
+              </div>
+              <div className="hub-feedback-grid">
+                {[1, 2, 3, 4].map((i) => (
+                  <FeedbackCardSkeleton key={i} />
+                ))}
+              </div>
+            </section>
+
+            {/* Activity Section Skeleton */}
+            <section className="hub-section">
+              <div className="hub-section-header">
+                <SkeletonPulse className="w-28 h-4 rounded" />
+              </div>
+              <div className="hub-activity-list">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <PostSkeleton key={i} />
+                ))}
+              </div>
+            </section>
+          </main>
+
+          <aside className="hub-rail">
+            {/* Builder Matches Skeleton */}
+            <div className="hub-module">
+              <div className="hub-module-header">
+                <SkeletonPulse className="w-28 h-4 rounded" />
+                <SkeletonPulse className="w-12 h-3 rounded" />
+              </div>
+              <div className="hub-match-deck">
+                {[1, 2, 3].map((i) => (
+                  <MatchCardSkeleton key={i} />
+                ))}
+              </div>
+            </div>
+
+            {/* Momentum Skeleton */}
+            <ModuleSkeleton lines={2} />
+
+            {/* Pending Skeleton */}
+            <ModuleSkeleton lines={3} />
+          </aside>
         </div>
-      </AppShell>
+      </div>
     );
   }
 
   // === NOT LOGGED IN ===
+
   if (authChecked && !user) {
     return (
-      <AppShell>
-        <div className="max-w-md mx-auto text-center py-16">
-          <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-700">
-            <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="hub-shell">
+        <div className="hub-auth-prompt">
+          <div className="hub-auth-icon">
+            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-semibold text-slate-100 mb-3">See what people are building</h1>
-          <p className="text-slate-400 mb-6 leading-relaxed">
-            Join to share ideas, get feedback, and connect with other builders.
+          <h1 className="hub-auth-title">Community Hub</h1>
+          <p className="hub-auth-text">
+            See what builders are working on, share ideas, and find teammates.
           </p>
           <Link href="/login" className="btn-primary">Log in to continue</Link>
         </div>
-      </AppShell>
+      </div>
     );
   }
 
-  // === RIGHT RAIL ===
-  const rightRailContent = (
-    <>
-      {/* Streak & Rep Card */}
-      <div className="rail-widget">
-        <div className="streak-header">
-          <div className="streak-flame">
-            {streak >= 3 ? "🔥" : streak >= 1 ? "✨" : "💤"}
-          </div>
-          <div className="streak-info">
-            <span className="streak-count">{streak} day{streak !== 1 ? "s" : ""}</span>
-            <span className="streak-label">active streak</span>
-          </div>
-        </div>
-        <div className="streak-progress-bar">
-          <div
-            className="streak-progress-fill"
-            style={{ width: `${Math.min(100, (userReputation % 25) * 4)}%` }}
-          />
-        </div>
-        <div className="streak-footer">
-          <span className="streak-rep">{userReputation} reputation</span>
-          <span className="streak-next">{25 - (userReputation % 25)} to next level</span>
-        </div>
-      </div>
+  // === CONTEXT RAIL CONTENT ===
 
-      {/* My Posts Waiting for Feedback */}
-      {myPendingPosts.length > 0 && (
-        <div className="rail-widget">
-          <div className="rail-widget-header">
-            <h3 className="rail-widget-title">Waiting for feedback</h3>
-            <span className="feed-rail-count">{myPendingPosts.length}</span>
-          </div>
-          <div className="feed-pending-list">
-            {myPendingPosts.slice(0, 3).map((post) => (
-              <Link key={post.id} href={`/posts/${post.id}`} className="feed-pending-item">
-                <span className={`feed-pending-category feed-pending-${post.category}`}>
-                  {post.category}
-                </span>
-                <span className="feed-pending-title">{post.title}</span>
-                <span className="feed-pending-time">{post.timeAgo}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Saved Builders */}
-      {savedBuilders.length > 0 && (
-        <div className="rail-widget">
-          <div className="rail-widget-header">
-            <h3 className="rail-widget-title">Saved builders</h3>
-            <Link href="/discover" className="rail-widget-link">View all</Link>
-          </div>
-          <div className="feed-saved-builders">
-            {savedBuilders.map((builder) => (
-              <div key={builder.id} className="feed-saved-builder">
-                <div className="feed-saved-avatar">
-                  {(builder.username || builder.name || "?")[0].toUpperCase()}
-                </div>
-                <span className="feed-saved-name">{builder.username || builder.name}</span>
-                {builder.stage && (
-                  <span className="feed-saved-stage">{builder.stage}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </>
-  );
-
-  // Count for display
-  const displayCount = searchQuery
-    ? posts.length
-    : filteredPosts.length + needsFeedback.length;
-
-  // === MAIN RENDER ===
-  return (
-    <AppShell rightRail={rightRailContent}>
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-
-      {/* Header + Status Pills */}
-      <header className="feed-header-v2">
-        <div className="feed-greeting-v2">
-          <h1 className="feed-greeting-title">{getGreeting()}</h1>
-          <p className="feed-greeting-subtitle">Here's what's happening in your network</p>
-        </div>
-        <div className="feed-status-pills">
-          <div className="feed-status-pill">
-            <span className="feed-status-dot feed-status-dot-live" />
-            <span className="feed-status-value">{activeNow}</span>
-            <span className="feed-status-label">active</span>
-          </div>
-          <div className="feed-status-pill">
-            <span className="feed-status-value">{ideasToday}</span>
-            <span className="feed-status-label">ideas today</span>
-          </div>
-          <div className="feed-status-pill">
-            <span className="feed-status-value">{connectionsMade}</span>
-            <span className="feed-status-label">connections</span>
-          </div>
-        </div>
-      </header>
-
-      {/* Search Bar */}
-      <div className="feed-search-bar">
-        <svg className="feed-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <input
-          type="text"
-          placeholder="Search posts by title, body, or category..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSearch(searchQuery)}
-          className="feed-search-input"
-        />
-        {searchQuery && (
-          <button onClick={clearSearch} className="feed-search-clear" aria-label="Clear search">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
-        <button
-          onClick={() => handleSearch(searchQuery)}
-          disabled={!searchQuery.trim() || isSearching}
-          className="feed-search-btn"
-        >
-          {isSearching ? "..." : "Search"}
+  const railContent = selectedPost ? (
+    // Post Detail Panel
+    <div className="hub-detail-panel">
+      <div className="hub-detail-header">
+        <h3 className="hub-detail-title">Post Details</h3>
+        <button onClick={closePostDetail} className="hub-detail-close" aria-label="Close">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
       </div>
 
-      {/* Search Results Status */}
-      {searchQuery && (
-        <div className="feed-search-status">
-          <span className="feed-search-results">
-            {posts.length} result{posts.length !== 1 ? "s" : ""} for "{searchQuery}"
-          </span>
-          <button onClick={clearSearch} className="feed-search-clear-link">
-            Clear search
-          </button>
+      <div className="hub-detail-content">
+        <div className="hub-detail-meta">
+          <span className={`hub-cat hub-cat-${selectedPost.category}`}>{selectedPost.category}</span>
+          <span className="hub-detail-time">{selectedPost.timeAgo}</span>
         </div>
-      )}
-
-      {/* Primary Action Tiles */}
-      {!searchQuery && (
-        <section className="feed-action-tiles">
-          <Link href="/posts/new?category=idea" className="feed-action-tile feed-action-idea">
-            <div className="feed-action-icon">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <span className="feed-action-title">Share an idea</span>
-            <span className="feed-action-desc">Get early feedback</span>
-          </Link>
-
-          <button
-            onClick={() => document.getElementById("needs-feedback")?.scrollIntoView({ behavior: "smooth" })}
-            className="feed-action-tile feed-action-feedback"
-          >
-            <div className="feed-action-icon">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </div>
-            <span className="feed-action-title">Give feedback</span>
-            <span className="feed-action-desc">{needsFeedback.length} waiting</span>
-          </button>
-
-          <Link href="/discover" className="feed-action-tile feed-action-discover">
-            <div className="feed-action-icon">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
-            </div>
-            <span className="feed-action-title">Find builders</span>
-            <span className="feed-action-desc">Discover teammates</span>
-          </Link>
-        </section>
-      )}
-
-      {/* Needs Feedback Section */}
-      {!searchQuery && needsFeedback.length > 0 && (
-        <section id="needs-feedback" className="feed-section">
-          <div className="feed-section-header">
-            <h2 className="feed-section-title">Needs Feedback</h2>
-            <span className="feed-section-hint">Be the first to help</span>
+        <h2 className="hub-detail-post-title">{selectedPost.title}</h2>
+        <p className="hub-detail-body">{selectedPost.body}</p>
+        <div className="hub-detail-author">
+          <div className="hub-detail-avatar">
+            {(selectedPost.users?.name ?? "?")[0].toUpperCase()}
           </div>
-          <div className="feed-needs-feedback-grid">
-            {needsFeedback.map((post) => (
-              <Link key={post.id} href={`/posts/${post.id}`} className="feed-feedback-card">
-                <div className="feed-feedback-header">
-                  <span className={`feed-feedback-category feed-cat-${post.category}`}>
-                    {post.category}
-                  </span>
-                  <span className="feed-feedback-time">{post.timeAgo}</span>
+          <span className="hub-detail-author-name">
+            {selectedPost.users?.username || selectedPost.users?.name || "Someone"}
+          </span>
+        </div>
+      </div>
+
+      <div className="hub-detail-comments">
+        <h4 className="hub-detail-comments-title">
+          Comments ({postComments.length})
+        </h4>
+
+        {loadingComments ? (
+          <div className="hub-detail-loading">Loading comments...</div>
+        ) : postComments.length === 0 ? (
+          <p className="hub-detail-no-comments">No comments yet. Be the first!</p>
+        ) : (
+          <div className="hub-comment-list">
+            {postComments.map((comment) => (
+              <div key={comment.id} className="hub-comment">
+                <div className="hub-comment-avatar">
+                  {(comment.users?.name ?? "?")[0].toUpperCase()}
                 </div>
-                <h3 className="feed-feedback-title">{post.title}</h3>
-                <p className="feed-feedback-preview">
-                  {post.body.length > 80 ? post.body.slice(0, 80) + "..." : post.body}
-                </p>
-                <div className="feed-feedback-footer">
-                  <div className="feed-feedback-author">
-                    <span className="feed-feedback-avatar">
-                      {(post.users?.name ?? "?")[0].toUpperCase()}
+                <div className="hub-comment-content">
+                  <div className="hub-comment-meta">
+                    <span className="hub-comment-author">
+                      {comment.users?.username || comment.users?.name || "Someone"}
                     </span>
-                    <span className="feed-feedback-author-name">
-                      {post.users?.username || post.users?.name || "Someone"}
+                    <span className="hub-comment-time">
+                      {formatTimeAgo(comment.created_at)}
                     </span>
                   </div>
-                  <span className="feed-feedback-cta">Help →</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Recent Activity Section */}
-      <section className="feed-section">
-        <div className="feed-section-header">
-          <h2 className="feed-section-title">
-            {searchQuery ? "Search Results" : "Recent Activity"}
-          </h2>
-          {!searchQuery && (
-            <Link href="/posts/new" className="feed-new-post-link">
-              New post
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </Link>
-          )}
-        </div>
-
-        {/* Filter Chips */}
-        {!searchQuery && (
-          <div className="feed-filter-chips">
-            {(["all", "idea", "feedback", "question", "showcase", "connections"] as FilterType[]).map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setActiveFilter(filter)}
-                className={`feed-filter-chip ${activeFilter === filter ? "feed-filter-chip-active" : ""}`}
-              >
-                {filter === "all" ? "All" :
-                 filter === "connections" ? "From Connections" :
-                 filter.charAt(0).toUpperCase() + filter.slice(1) + "s"}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Posts List Grouped by Day */}
-        {Object.keys(groupedPosts).length === 0 ? (
-          <div className="feed-empty-state">
-            <svg className="feed-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            <p className="feed-empty-text">
-              {searchQuery
-                ? "No posts match your search."
-                : activeFilter === "connections"
-                ? "No posts from your connections yet."
-                : "No posts yet. Be the first to share something!"}
-            </p>
-            {!searchQuery && (
-              <Link href="/posts/new" className="btn-primary mt-4">Create a post</Link>
-            )}
-          </div>
-        ) : (
-          <div className="feed-posts-grouped">
-            {Object.entries(groupedPosts).map(([day, dayPosts]) => (
-              <div key={day} className="feed-day-group">
-                <h3 className="feed-day-label">{day}</h3>
-                <div className="feed-day-posts">
-                  {dayPosts.map((post) => (
-                    <article key={post.id} className="feed-post-card">
-                      <Link href={`/posts/${post.id}`} className="feed-post-main">
-                        <div className="feed-post-avatar">
-                          {(post.users?.name ?? "?")[0].toUpperCase()}
-                        </div>
-                        <div className="feed-post-content">
-                          <div className="feed-post-meta">
-                            <span className="feed-post-author">
-                              {post.users?.username || post.users?.name || "Someone"}
-                            </span>
-                            <span className="feed-post-dot">·</span>
-                            <span className="feed-post-time">{post.timeAgo}</span>
-                            <span className={`feed-post-category feed-cat-${post.category}`}>
-                              {post.category}
-                            </span>
-                            {post.isFromConnection && (
-                              <span className="feed-post-connection">connection</span>
-                            )}
-                          </div>
-                          <h3 className="feed-post-title">{post.title}</h3>
-                          <p className="feed-post-preview">
-                            {post.body.length > 120 ? post.body.slice(0, 120) + "..." : post.body}
-                          </p>
-                        </div>
-                      </Link>
-                      <div className="feed-post-actions">
-                        <Link
-                          href={`/posts/${post.id}`}
-                          className="feed-post-action"
-                          title={`${post.commentCount} comments`}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
-                          <span>{post.commentCount}</span>
-                        </Link>
-                        <button
-                          onClick={() => toggleSave(post.id)}
-                          className={`feed-post-action ${savedPostIds.has(post.id) ? "feed-post-action-active" : ""}`}
-                          title={savedPostIds.has(post.id) ? "Remove from saved" : "Save for later"}
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill={savedPostIds.has(post.id) ? "currentColor" : "none"}
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                          </svg>
-                        </button>
-                      </div>
-                    </article>
-                  ))}
+                  <p className="hub-comment-body">{comment.body}</p>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </section>
-    </AppShell>
+
+        <div className="hub-comment-form">
+          <textarea
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && e.metaKey && newComment.trim()) {
+                submitComment();
+              }
+            }}
+            placeholder="Add a comment..."
+            className="hub-comment-input"
+            rows={2}
+            aria-label="Write a comment"
+          />
+          <button
+            onClick={submitComment}
+            disabled={!newComment.trim() || submittingComment}
+            className={`hub-comment-submit ${
+              commentStatus === "success" ? "hub-comment-submit-success" :
+              commentStatus === "error" ? "hub-comment-submit-error" : ""
+            }`}
+          >
+            {commentStatus === "saving" ? (
+              <span className="hub-btn-loading">
+                <span className="hub-spinner" />
+                Posting...
+              </span>
+            ) : commentStatus === "success" ? (
+              <span className="hub-btn-success">✓ Posted</span>
+            ) : commentStatus === "error" ? (
+              <span className="hub-btn-error">Failed</span>
+            ) : (
+              "Post"
+            )}
+          </button>
+          <span className="hub-comment-hint">⌘ + Enter to submit</span>
+        </div>
+      </div>
+    </div>
+  ) : (
+    // Default Rail Modules
+    <>
+      {/* Module 1: Builder Matches */}
+      <div className="hub-module">
+        <div className="hub-module-header">
+          <h3 className="hub-module-title">Builder Matches</h3>
+          <Link href="/discover" className="hub-module-link">See all</Link>
+        </div>
+        {visibleMatches.length > 0 ? (
+          <div className="hub-match-deck">
+            {visibleMatches.slice(0, 3).map((builder) => {
+              const overlaps = userProfile ? findOverlaps(userProfile, builder) : [];
+              const isPending = pendingIds.has(builder.id);
+
+              return (
+                <div key={builder.id} className="hub-match-card">
+                  <div className="hub-match-main">
+                    <div className="hub-match-avatar">
+                      {(builder.username || builder.name || "?")[0].toUpperCase()}
+                    </div>
+                    <div className="hub-match-info">
+                      <span className="hub-match-name">
+                        {builder.username || builder.name}
+                      </span>
+                      {builder.one_liner && (
+                        <span className="hub-match-liner">{builder.one_liner}</span>
+                      )}
+                      {overlaps.length > 0 && (
+                        <div className="hub-match-overlaps">
+                          {overlaps.map((o) => (
+                            <span key={o} className="hub-match-overlap">{o}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="hub-match-actions">
+                    <button
+                      onClick={() => handleDismissBuilder(builder.id)}
+                      className="hub-match-dismiss"
+                      aria-label="Not interested"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    {isPending ? (
+                      <span className="hub-match-pending">Pending</span>
+                    ) : (
+                      <button
+                        onClick={() => handleConnect(builder.id)}
+                        disabled={connectingId === builder.id}
+                        className="hub-match-connect"
+                      >
+                        {connectingId === builder.id ? (
+                          <span className="hub-btn-loading">
+                            <span className="hub-spinner-sm" />
+                          </span>
+                        ) : (
+                          "Connect"
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="hub-module-empty">
+            <p className="hub-module-empty-text">No new matches right now</p>
+            <Link href="/profile" className="hub-module-empty-link">
+              Update your profile to get better matches
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* Module 2: Your Momentum */}
+      <div className="hub-module">
+        <div className="hub-module-header">
+          <h3 className="hub-module-title">Your Momentum</h3>
+        </div>
+        <div className="hub-momentum">
+          <div className="hub-momentum-streak">
+            <span className="hub-momentum-flame">
+              {streak >= 7 ? "🔥" : streak >= 3 ? "✨" : "💫"}
+            </span>
+            <div className="hub-momentum-info">
+              <span className="hub-momentum-days">{streak} day streak</span>
+              <span className="hub-momentum-label">Keep it going!</span>
+            </div>
+          </div>
+          <div className="hub-momentum-rep">
+            <div className="hub-momentum-rep-bar">
+              <div
+                className="hub-momentum-rep-fill"
+                style={{ width: `${Math.min(100, (userProfile?.reputation || 0) % 25 * 4)}%` }}
+              />
+            </div>
+            <div className="hub-momentum-rep-text">
+              <span>{userProfile?.reputation || 0} rep</span>
+              <span>{25 - ((userProfile?.reputation || 0) % 25)} to next level</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Module 3: Waiting for Feedback */}
+      <div className="hub-module">
+        <div className="hub-module-header">
+          <h3 className="hub-module-title">Waiting for Feedback</h3>
+          {myPendingPosts.length > 0 && (
+            <span className="hub-module-count">{myPendingPosts.length}</span>
+          )}
+        </div>
+        {myPendingPosts.length > 0 ? (
+          <div className="hub-pending-list">
+            {myPendingPosts.slice(0, 3).map((post) => (
+              <button
+                key={post.id}
+                onClick={() => openPostDetail(post)}
+                className="hub-pending-item"
+              >
+                <span className={`hub-cat hub-cat-${post.category}`}>{post.category}</span>
+                <span className="hub-pending-title">{post.title}</span>
+                <span className="hub-pending-time">{post.timeAgo}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="hub-module-empty">
+            <p className="hub-module-empty-text">No posts awaiting feedback</p>
+            <Link href="/posts/new?category=feedback" className="hub-module-empty-link">
+              Request feedback on something →
+            </Link>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  // === MAIN RENDER ===
+
+  return (
+    <div className="hub-shell">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* Top Strip */}
+      <header className="hub-header">
+        <div className="hub-header-left">
+          <h1 className="hub-greeting">{getGreeting()}</h1>
+          <div className="hub-pulse">
+            <span className="hub-pulse-item">
+              <span className="hub-pulse-dot" />
+              <span className="hub-pulse-value">{activeNow}</span>
+              <span className="hub-pulse-label">active</span>
+            </span>
+            <span className="hub-pulse-sep">·</span>
+            <span className="hub-pulse-item">
+              <span className="hub-pulse-value">{ideasToday}</span>
+              <span className="hub-pulse-label">ideas</span>
+            </span>
+            <span className="hub-pulse-sep">·</span>
+            <span className="hub-pulse-item">
+              <span className="hub-pulse-value">{newConnections}</span>
+              <span className="hub-pulse-label">new connections</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="hub-header-right">
+          {/* Search */}
+          <div className="hub-search" role="search">
+            <svg className="hub-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search posts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              className="hub-search-input"
+              aria-label="Search posts"
+            />
+            {searchQuery && (
+              <button
+                onClick={clearSearch}
+                className="hub-search-clear"
+                aria-label="Clear search"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+            {isSearching && (
+              <span className="hub-search-loading" aria-live="polite">
+                <span className="hub-spinner" />
+              </span>
+            )}
+          </div>
+
+          {/* New Post CTA */}
+          <Link href="/posts/new" className="hub-new-post-btn">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Post
+          </Link>
+        </div>
+      </header>
+
+      {/* Search Status */}
+      {debouncedQuery && (
+        <div className="hub-search-status">
+          <span>{posts.length} results for "{debouncedQuery}"</span>
+          <button onClick={clearSearch} className="hub-search-clear-link">Clear</button>
+        </div>
+      )}
+
+      {/* Main Grid */}
+      <div className="hub-grid">
+        {/* Main Column */}
+        <main className="hub-main">
+          {/* Needs Feedback Section */}
+          {!debouncedQuery && needsFeedback.length > 0 && (
+            <section className="hub-section">
+              <div className="hub-section-header">
+                <h2 className="hub-section-title">Needs Feedback</h2>
+                <span className="hub-section-hint">Be the first to help</span>
+              </div>
+              <div className="hub-feedback-grid">
+                {needsFeedback.map((post) => (
+                  <button
+                    key={post.id}
+                    onClick={() => openPostDetail(post)}
+                    className="hub-feedback-card"
+                  >
+                    <div className="hub-feedback-top">
+                      <span className={`hub-cat hub-cat-${post.category}`}>{post.category}</span>
+                      <span className="hub-feedback-time">{post.timeAgo}</span>
+                    </div>
+                    <h3 className="hub-feedback-title">{post.title}</h3>
+                    <p className="hub-feedback-preview">
+                      {post.body.length > 60 ? post.body.slice(0, 60) + "..." : post.body}
+                    </p>
+                    <div className="hub-feedback-footer">
+                      <span className="hub-feedback-author">
+                        {post.users?.username || post.users?.name || "Someone"}
+                      </span>
+                      <span className="hub-feedback-cta">Help →</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Recent Activity */}
+          <section className="hub-section">
+            <div className="hub-section-header">
+              <h2 className="hub-section-title">
+                {debouncedQuery ? "Search Results" : "Recent Activity"}
+              </h2>
+            </div>
+
+            {activityPosts.length === 0 ? (
+              <EmptyState
+                icon={
+                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                  </svg>
+                }
+                title={debouncedQuery ? "No matching posts" : "No posts yet"}
+                description={
+                  debouncedQuery
+                    ? `We couldn't find any posts matching "${debouncedQuery}". Try a different search or browse all posts.`
+                    : "Be the first to share something with the community. Your ideas, questions, and progress updates help others."
+                }
+                actions={
+                  debouncedQuery ? (
+                    <button onClick={clearSearch} className="hub-empty-btn">
+                      Clear search
+                    </button>
+                  ) : (
+                    <div className="hub-empty-actions-row">
+                      <Link href="/posts/new?category=idea" className="hub-empty-btn hub-empty-btn-primary">
+                        Share an idea
+                      </Link>
+                      <Link href="/members" className="hub-empty-btn">
+                        Invite someone
+                      </Link>
+                    </div>
+                  )
+                }
+              />
+            ) : (
+              <div className="hub-activity-list">
+                {activityPosts.map((post) => (
+                  <article key={post.id} className="hub-post">
+                    <button
+                      onClick={() => openPostDetail(post)}
+                      className="hub-post-main"
+                    >
+                      <div className="hub-post-avatar">
+                        {(post.users?.name ?? "?")[0].toUpperCase()}
+                      </div>
+                      <div className="hub-post-content">
+                        <div className="hub-post-meta">
+                          <span className="hub-post-author">
+                            {post.users?.username || post.users?.name || "Someone"}
+                          </span>
+                          <span className="hub-post-time">{post.timeAgo}</span>
+                          <span className={`hub-cat hub-cat-${post.category}`}>{post.category}</span>
+                          {post.isFromConnection && (
+                            <span className="hub-post-connection">connection</span>
+                          )}
+                        </div>
+                        <h3 className="hub-post-title">{post.title}</h3>
+                        <p className="hub-post-preview">
+                          {post.body.length > 100 ? post.body.slice(0, 100) + "..." : post.body}
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Quick Reactions + Comment Count */}
+                    <div className={`hub-post-actions ${reactionStatus[post.id] === "success" ? "hub-post-actions-feedback" : ""}`}>
+                      <div className="hub-reactions" role="group" aria-label="React to this post">
+                        <button
+                          onClick={() => handleReaction(post.id, "interested")}
+                          className={`hub-reaction ${reactions[post.id] === "interested" ? "hub-reaction-active" : ""}`}
+                          aria-label="Interested"
+                          aria-pressed={reactions[post.id] === "interested"}
+                        >
+                          👀
+                        </button>
+                        <button
+                          onClick={() => handleReaction(post.id, "useful")}
+                          className={`hub-reaction ${reactions[post.id] === "useful" ? "hub-reaction-active" : ""}`}
+                          aria-label="Useful"
+                          aria-pressed={reactions[post.id] === "useful"}
+                        >
+                          💡
+                        </button>
+                        <button
+                          onClick={() => handleReaction(post.id, "curious")}
+                          className={`hub-reaction ${reactions[post.id] === "curious" ? "hub-reaction-active" : ""}`}
+                          aria-label="Curious"
+                          aria-pressed={reactions[post.id] === "curious"}
+                        >
+                          🤔
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => openPostDetail(post)}
+                        className="hub-post-comments"
+                        aria-label={`${post.commentCount} comments, click to view`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        {post.commentCount}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </main>
+
+        {/* Context Rail */}
+        <aside className="hub-rail">
+          {railContent}
+        </aside>
+      </div>
+    </div>
   );
 }

@@ -62,6 +62,32 @@ const SKILL_OPTIONS = [
   "strategy",
 ];
 
+const COLLABORATION_INTENT_OPTIONS = [
+  { value: "equal_cofounder", label: "Equal Cofounder" },
+  { value: "trial_collaboration", label: "Trial Collaboration" },
+  { value: "founding_teammate", label: "Founding Teammate" },
+  { value: "advisor_mentor", label: "Advisor / Mentor" },
+  { value: "feedback_only", label: "Feedback Only" },
+  { value: "project_collaborator", label: "Project Collaborator" },
+];
+
+const COMMITMENT_OPTIONS = [
+  "5 hrs/week",
+  "10 hrs/week",
+  "nights/weekends",
+  "full-time now",
+  "full-time soon",
+];
+
+const WORKING_STYLE_OPTIONS = ["async", "weekly calls", "intense sprint", "casual exploration"];
+
+const EQUITY_INTENT_OPTIONS = [
+  "open to equal split",
+  "stage-adjusted equity",
+  "not discussing yet",
+  "paid/contract only",
+];
+
 const VISIBILITY_OPTIONS = [
   { value: "public", label: "Public", desc: "Visible to all members" },
   { value: "match_only", label: "Match Only", desc: "Only shown in Discover, hidden from Members" },
@@ -220,6 +246,13 @@ function ProfileContent() {
   const [reputation, setReputation] = useState(0);
 
   // Builder Card fields
+  const [projectName, setProjectName] = useState("");
+  const [tractionSignal, setTractionSignal] = useState("");
+  const [collaborationIntent, setCollaborationIntent] = useState("");
+  const [commitmentLevel, setCommitmentLevel] = useState("");
+  const [workingStyle, setWorkingStyle] = useState("");
+  const [equityIntent, setEquityIntent] = useState("");
+  const [timezone, setTimezone] = useState("");
   const [oneLiner, setOneLiner] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [stage, setStage] = useState("");
@@ -251,7 +284,7 @@ function ProfileContent() {
       const { data: profile } = await supabase
         .from("users")
         .select(
-          "username, school, major, bio, reputation, one_liner, categories, stage, looking_for, skills, availability, visibility, builder_card_updated_at"
+          "username, school, major, bio, reputation, one_liner, categories, stage, looking_for, skills, availability, visibility, builder_card_updated_at, project_name, traction_signal, collaboration_intent, commitment_level, working_style, equity_intent, timezone"
         )
         .eq("id", currentUser.id)
         .single();
@@ -273,6 +306,13 @@ function ProfileContent() {
         setAvailability(profile.availability ?? "");
         setVisibility(profile.visibility ?? "public");
         setBuilderCardUpdatedAt(profile.builder_card_updated_at ?? null);
+        setProjectName(profile.project_name ?? "");
+        setTractionSignal(profile.traction_signal ?? "");
+        setCollaborationIntent(profile.collaboration_intent ?? "");
+        setCommitmentLevel(profile.commitment_level ?? "");
+        setWorkingStyle(profile.working_style ?? "");
+        setEquityIntent(profile.equity_intent ?? "");
+        setTimezone(profile.timezone ?? "");
       }
 
       setLoading(false);
@@ -337,6 +377,13 @@ function ProfileContent() {
         availability: availability.trim() || null,
         visibility: visibility,
         builder_card_updated_at: new Date().toISOString(),
+        project_name: projectName.trim() || null,
+        traction_signal: tractionSignal.trim() || null,
+        collaboration_intent: collaborationIntent || null,
+        commitment_level: commitmentLevel || null,
+        working_style: workingStyle || null,
+        equity_intent: equityIntent || null,
+        timezone: timezone.trim() || null,
       })
       .eq("id", user.id);
 
@@ -763,6 +810,121 @@ function ProfileContent() {
             onChange={setSkills}
             maxSelected={6}
           />
+
+          {/* Collaboration Intent Section */}
+          <div className="border-t border-slate-700/50 pt-6 space-y-5">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-200">Collaboration Intent</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Help other builders understand what kind of collaboration you are actually looking for.
+              </p>
+            </div>
+
+            <div>
+              <label className="label">Current Project</label>
+              <input
+                type="text"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                className="input-field"
+                placeholder="e.g., AI scheduling assistant for students"
+              />
+            </div>
+
+            <div>
+              <label className="label">Momentum Signal</label>
+              <input
+                type="text"
+                value={tractionSignal}
+                onChange={(e) => setTractionSignal(e.target.value)}
+                className="input-field"
+                placeholder="e.g., Talked to 12 users, prototype live, 2 design partners"
+              />
+              <p className="helper-text">Your current progress or proof of activity</p>
+            </div>
+
+            <div>
+              <label className="label">Collaboration Type</label>
+              <div className="chip-grid">
+                {COLLABORATION_INTENT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setCollaborationIntent(collaborationIntent === opt.value ? "" : opt.value)}
+                    className={`chip-option ${collaborationIntent === opt.value ? "chip-option-selected" : ""}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="label">Commitment Level</label>
+              <div className="chip-grid">
+                {COMMITMENT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setCommitmentLevel(commitmentLevel === opt ? "" : opt)}
+                    className={`chip-option ${commitmentLevel === opt ? "chip-option-selected" : ""}`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="label">Working Style</label>
+              <div className="chip-grid">
+                {WORKING_STYLE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setWorkingStyle(workingStyle === opt ? "" : opt)}
+                    className={`chip-option ${workingStyle === opt ? "chip-option-selected" : ""}`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="label">
+                Equity Intent{" "}
+                <span className="text-slate-500 font-normal">(optional)</span>
+              </label>
+              <div className="chip-grid">
+                {EQUITY_INTENT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setEquityIntent(equityIntent === opt ? "" : opt)}
+                    className={`chip-option ${equityIntent === opt ? "chip-option-selected" : ""}`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+              <p className="helper-text">Helps prevent mismatched expectations</p>
+            </div>
+
+            <div>
+              <label className="label">
+                Timezone{" "}
+                <span className="text-slate-500 font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="input-field"
+                placeholder="e.g., PT, ET, GMT+2"
+              />
+            </div>
+          </div>
 
           {/* Availability */}
           <div>

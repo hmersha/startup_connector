@@ -1,16 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { ReactNode } from "react";
 
 type AppShellProps = {
+  /** Optional page header title */
   title?: string;
+  /** Optional subtitle below title */
   subtitle?: string;
-  rightRail?: React.ReactNode;
-  children: React.ReactNode;
+  /** Right rail content - rail only renders at lg+ if this has content */
+  rightRail?: ReactNode;
+  /** Main page content */
+  children: ReactNode;
 };
 
-export default function AppShell({ title, subtitle, rightRail, children }: AppShellProps) {
-  const [showRail, setShowRail] = useState(false);
+/**
+ * AppShell - Layout wrapper for authenticated pages
+ *
+ * Features:
+ * - Full-width app-like feel on desktop
+ * - 2-column layout at lg+ with main content + context rail
+ * - Rail only renders if content provided (no empty placeholders)
+ * - Consistent spacing and responsive behavior
+ */
+export default function AppShell({
+  title,
+  subtitle,
+  rightRail,
+  children,
+}: AppShellProps) {
+  const hasRail = Boolean(rightRail);
 
   return (
     <div className="app-shell">
@@ -23,39 +41,13 @@ export default function AppShell({ title, subtitle, rightRail, children }: AppSh
       )}
 
       {/* Main Grid */}
-      <div className={`app-shell-grid ${rightRail ? "app-shell-grid--with-rail" : ""}`}>
-        {/* Main Content */}
+      <div className={`app-shell-grid ${hasRail ? "app-shell-grid--with-rail" : ""}`}>
         <main className="app-shell-main">{children}</main>
 
-        {/* Right Rail */}
-        {rightRail && (
-          <>
-            {/* Mobile Toggle */}
-            <button
-              className="app-shell-rail-toggle"
-              onClick={() => setShowRail(!showRail)}
-              aria-expanded={showRail}
-              aria-controls="app-shell-rail"
-            >
-              <span>{showRail ? "Hide" : "More"}</span>
-              <svg
-                className={`app-shell-rail-toggle-icon ${showRail ? "rotate-180" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {/* Rail Content */}
-            <aside
-              id="app-shell-rail"
-              className={`app-shell-rail ${showRail ? "app-shell-rail--open" : ""}`}
-            >
-              {rightRail}
-            </aside>
-          </>
+        {hasRail && (
+          <aside className="app-shell-rail app-shell-rail--open">
+            {rightRail}
+          </aside>
         )}
       </div>
     </div>

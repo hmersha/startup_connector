@@ -85,6 +85,9 @@ export default function Nav() {
                 <Link href="/discover" className="nav-link">
                   Discover
                 </Link>
+                <Link href="/sprints" className="nav-link">
+                  Sprints
+                </Link>
                 <Link href="/posts/new" className="nav-link">
                   New Post
                 </Link>
