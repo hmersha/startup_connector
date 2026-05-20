@@ -71,13 +71,11 @@ function SprintCard({
   currentUserId,
   onAccept,
   onDecline,
-  onComplete,
 }: {
   sprint: Sprint;
   currentUserId: string;
   onAccept: (id: string) => void;
   onDecline: (id: string) => void;
-  onComplete: (id: string) => void;
 }) {
   const isProposer = sprint.proposer_id === currentUserId;
   const other = isProposer ? sprint.recipient : sprint.proposer;
@@ -124,15 +122,6 @@ function SprintCard({
               Decline
             </button>
           </>
-        )}
-
-        {(sprint.status === "accepted" || sprint.status === "active") && (
-          <button
-            onClick={() => onComplete(sprint.id)}
-            className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
-          >
-            Mark Complete
-          </button>
         )}
       </div>
     </div>
@@ -199,15 +188,6 @@ export default function SprintsPage() {
     );
   }
 
-  async function handleComplete(id: string) {
-    await supabase
-      .from("sprints")
-      .update({ status: "completed", completed_at: new Date().toISOString() })
-      .eq("id", id);
-    setSprints((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, status: "completed" } : s))
-    );
-  }
 
   if (!authChecked || loading) {
     return (
@@ -297,7 +277,6 @@ export default function SprintsPage() {
               currentUserId={user.id}
               onAccept={handleAccept}
               onDecline={handleDecline}
-              onComplete={handleComplete}
             />
           ))}
         </div>

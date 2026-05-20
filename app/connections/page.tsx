@@ -204,8 +204,45 @@ export default function ConnectionsPage() {
     setProcessing(null);
   }
 
-  function startConversation(otherUserId: string) {
-    router.push(`/members?message=${otherUserId}`);
+  async function startConversation(otherUserId: string) {
+    if (!user) return;
+    // Find or create a conversation, then navigate to it
+    const { data: myMemberships } = await supabase
+      .from("conversation_members")
+      .select("conversation_id")
+      .eq("user_id", user.id);
+
+    if (myMemberships && myMemberships.length > 0) {
+      const convoIds = myMemberships.map((m) => m.conversation_id);
+      const { data: shared } = await supabase
+        .from("conversation_members")
+        .select("conversation_id")
+        .eq("user_id", otherUserId)
+        .in("conversation_id", convoIds)
+        .limit(1)
+        .maybeSingle();
+
+      if (shared) {
+        router.push(`/messages/${shared.conversation_id}`);
+        return;
+      }
+    }
+
+    // Create new conversation
+    const { data: newConvo } = await supabase
+      .from("conversations")
+      .insert({ created_by: user.id })
+      .select("id")
+      .single();
+
+    if (!newConvo?.id) return;
+
+    await supabase.from("conversation_members").insert([
+      { conversation_id: newConvo.id, user_id: user.id },
+      { conversation_id: newConvo.id, user_id: otherUserId },
+    ]);
+
+    router.push(`/messages/${newConvo.id}`);
   }
 
   // Get the "other" user from a connection

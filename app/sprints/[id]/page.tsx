@@ -294,11 +294,19 @@ export default function SprintRoomPage() {
           </div>
         )}
 
-        {/* Updates placeholder */}
-        <div className="card p-6">
-          <h2 className="sprint-room-section-title">Updates</h2>
-          <p className="text-slate-500 text-sm mt-2">No updates yet.</p>
-        </div>
+        {/* Coordination note */}
+        {isActive && (
+          <div className="card p-6">
+            <h2 className="sprint-room-section-title">Coordination</h2>
+            <p className="text-slate-500 text-sm mt-2">
+              Use{" "}
+              <Link href="/network" className="text-indigo-400 hover:text-indigo-300">
+                Messages
+              </Link>{" "}
+              to share progress and coordinate with your sprint partner.
+            </p>
+          </div>
+        )}
 
         {/* Outcome (if completed) */}
         {isCompleted && sprint.outcome && (

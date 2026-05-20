@@ -740,7 +740,8 @@ export default function DiscoverPage() {
         status: "pending",
       });
 
-      if (!error) {
+      // Ignore duplicate key errors (user clicked Connect twice)
+      if (!error || error.code === "23505") {
         setConnections((prev) => [
           ...prev,
           { requester_id: user.id, addressee_id: targetId, status: "pending" },

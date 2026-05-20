@@ -62,14 +62,14 @@ export default function Nav() {
             </span>
           </Link>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
             {/* Logged-in nav */}
             {user &&
               NAV_ITEMS.map(({ href, label, match }) => (
                 <Link
                   key={href}
                   href={href}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-2 sm:px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                     isActive(match)
                       ? "bg-indigo-500/15 text-indigo-300"
                       : "text-slate-400 hover:text-slate-100 hover:bg-slate-700/40"
@@ -81,7 +81,7 @@ export default function Nav() {
 
             {/* Logged-out home link */}
             {!user && (
-              <Link href="/" className="nav-link">
+              <Link href="/" className="nav-link whitespace-nowrap">
                 Home
               </Link>
             )}
@@ -90,14 +90,14 @@ export default function Nav() {
             {user ? (
               <button
                 onClick={async () => { await supabase.auth.signOut(); }}
-                className="ml-3 text-sm text-slate-500 hover:text-slate-300 transition-colors"
+                className="ml-1 sm:ml-3 text-sm text-slate-500 hover:text-slate-300 transition-colors whitespace-nowrap"
               >
                 Logout
               </button>
             ) : (
               <Link
                 href="/login"
-                className="ml-3 text-sm font-medium px-3 py-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30 hover:border-indigo-400/50 hover:text-indigo-300 transition-all duration-200"
+                className="ml-2 text-sm font-medium px-3 py-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30 hover:border-indigo-400/50 hover:text-indigo-300 transition-all duration-200 whitespace-nowrap"
               >
                 Login
               </Link>

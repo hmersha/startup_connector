@@ -102,12 +102,16 @@ function BuilderCardCompletionMeter({
   stage,
   lookingFor,
   skills,
+  collaborationIntent,
+  projectName,
 }: {
   oneLiner: string;
   categories: string[];
   stage: string;
   lookingFor: string[];
   skills: string[];
+  collaborationIntent: string;
+  projectName: string;
 }) {
   const fields = [
     { name: "One-liner", filled: oneLiner.trim().length > 0 },
@@ -115,6 +119,8 @@ function BuilderCardCompletionMeter({
     { name: "Stage", filled: stage.length > 0 },
     { name: "Looking for", filled: lookingFor.length > 0 },
     { name: "Skills", filled: skills.length > 0 },
+    { name: "Project", filled: projectName.trim().length > 0 },
+    { name: "Intent", filled: collaborationIntent.length > 0 },
   ];
 
   const filledCount = fields.filter((f) => f.filled).length;
@@ -639,6 +645,8 @@ function ProfileContent() {
             stage={stage}
             lookingFor={lookingFor}
             skills={skills}
+            collaborationIntent={collaborationIntent}
+            projectName={projectName}
           />
 
           {/* Info banner */}
