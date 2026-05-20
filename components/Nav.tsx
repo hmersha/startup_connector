@@ -6,132 +6,98 @@ import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
+const NAV_ITEMS = [
+  { href: "/discover", label: "Discover", match: ["/discover"] },
+  { href: "/sprints",  label: "Sprints",  match: ["/sprints"] },
+  {
+    href: "/network",
+    label: "Network",
+    match: ["/network", "/messages", "/members", "/connections"],
+  },
+  { href: "/profile",  label: "Profile",  match: ["/profile"] },
+];
+
 export default function Nav() {
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
-  const [reputation, setReputation] = useState<number | null>(null);
 
   const isLandingPage = pathname === "/";
 
+  function isActive(match: string[]) {
+    return match.some((m) => pathname === m || pathname.startsWith(m + "/"));
+  }
+
   useEffect(() => {
-    async function loadUserAndReputation() {
+    async function loadUser() {
       const { data: authData } = await supabase.auth.getUser();
-      const currentUser = authData?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        const { data: userData } = await supabase
-          .from("users")
-          .select("reputation")
-          .eq("id", currentUser.id)
-          .single();
-
-        if (userData) {
-          setReputation(userData.reputation);
-        }
-      }
+      setUser(authData?.user ?? null);
     }
 
-    loadUserAndReputation();
+    loadUser();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") {
-        setUser(null);
-        setReputation(null);
-      } else if (event === "SIGNED_IN" && session?.user) {
-        setUser(session.user);
-        supabase
-          .from("users")
-          .select("reputation")
-          .eq("id", session.user.id)
-          .single()
-          .then(({ data }) => {
-            if (data) setReputation(data.reputation);
-          });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === "SIGNED_OUT") setUser(null);
+        else if (session?.user) setUser(session.user);
       }
-    });
+    );
 
     return () => subscription.unsubscribe();
   }, []);
 
   return (
-    <nav className={`sticky top-0 z-50 border-b border-slate-700/50 ${isLandingPage ? "bg-transparent backdrop-blur-md" : "bg-slate-900/80 backdrop-blur-lg"}`}>
+    <nav
+      className={`sticky top-0 z-50 border-b border-slate-700/50 ${
+        isLandingPage
+          ? "bg-transparent backdrop-blur-md"
+          : "bg-slate-900/80 backdrop-blur-lg"
+      }`}
+    >
       <div className="nav-container">
         <div className="flex h-16 items-center justify-between">
-          <Link
-            href="/"
-            className="text-lg font-semibold group"
-          >
+          {/* Logo */}
+          <Link href="/" className="text-lg font-semibold group">
             <span className="bg-gradient-to-r from-indigo-400 via-indigo-500 to-violet-400 bg-clip-text text-transparent transition-all duration-300 group-hover:from-indigo-300 group-hover:via-indigo-400 group-hover:to-violet-300">
               CollabSpace
             </span>
           </Link>
-          <div className="flex items-center gap-5">
-            {/* Logged out: Home (landing page) */}
+
+          <div className="flex items-center gap-1">
+            {/* Logged-in nav */}
+            {user &&
+              NAV_ITEMS.map(({ href, label, match }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive(match)
+                      ? "bg-indigo-500/15 text-indigo-300"
+                      : "text-slate-400 hover:text-slate-100 hover:bg-slate-700/40"
+                  }`}
+                >
+                  {label}
+                </Link>
+              ))}
+
+            {/* Logged-out home link */}
             {!user && (
               <Link href="/" className="nav-link">
                 Home
               </Link>
             )}
 
-            {/* Logged in: Feed + other pages */}
-            {user && (
-              <>
-                <Link href="/feed" className="nav-link">
-                  Feed
-                </Link>
-                <Link href="/discover" className="nav-link">
-                  Discover
-                </Link>
-                <Link href="/sprints" className="nav-link">
-                  Sprints
-                </Link>
-                <Link href="/posts/new" className="nav-link">
-                  New Post
-                </Link>
-                <Link href="/members" className="nav-link">
-                  Members
-                </Link>
-                <Link href="/connections" className="nav-link">
-                  Connections
-                </Link>
-                <Link href="/messages" className="nav-link">
-                  Messages
-                </Link>
-                <Link href="/profile" className="nav-link">
-                  Profile
-                </Link>
-              </>
-            )}
-
-            {/* Reputation badge */}
-            {user && reputation !== null && (
-              <Link
-                href="/reputation"
-                className="flex items-center gap-1.5 text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
-              >
-                <span className="rep-badge">
-                  {reputation}
-                </span>
-              </Link>
-            )}
-
-            {/* Login/Logout */}
+            {/* Auth button */}
             {user ? (
               <button
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                }}
-                className="nav-link font-medium"
+                onClick={async () => { await supabase.auth.signOut(); }}
+                className="ml-3 text-sm text-slate-500 hover:text-slate-300 transition-colors"
               >
                 Logout
               </button>
             ) : (
               <Link
                 href="/login"
-                className="text-sm font-medium px-3 py-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30 hover:border-indigo-400/50 hover:text-indigo-300 transition-all duration-200"
+                className="ml-3 text-sm font-medium px-3 py-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30 hover:border-indigo-400/50 hover:text-indigo-300 transition-all duration-200"
               >
                 Login
               </Link>

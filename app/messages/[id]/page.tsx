@@ -38,6 +38,7 @@ export default function ConversationPage({
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -95,7 +96,10 @@ export default function ConversationPage({
         },
         (payload) => {
           const newMsg = payload.new as Message;
-          setMessages((prev) => [...prev, newMsg]);
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
         }
       )
       .subscribe();
@@ -114,18 +118,26 @@ export default function ConversationPage({
     if (!user || !newMessage.trim()) return;
 
     setSending(true);
+    setSendError("");
+    const body = newMessage.trim();
+    setNewMessage("");
 
-    const { error } = await supabase.from("messages").insert({
-      conversation_id: id,
-      sender_id: user.id,
-      body: newMessage.trim(),
-    });
+    const { data: insertedMsg, error } = await supabase
+      .from("messages")
+      .insert({ conversation_id: id, sender_id: user.id, body })
+      .select("id, body, sender_id, created_at")
+      .single();
 
     setSending(false);
 
-    if (!error) {
-      setNewMessage("");
-      // Update presence on message send
+    if (error) {
+      setNewMessage(body);
+      setSendError("Failed to send. Please try again.");
+    } else if (insertedMsg) {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === insertedMsg.id)) return prev;
+        return [...prev, insertedMsg as Message];
+      });
       await updatePresence(user.id);
     }
   }
@@ -321,6 +333,9 @@ export default function ConversationPage({
       </div>
 
       {/* Input */}
+      {sendError && (
+        <p className="text-xs text-red-400 mt-2 px-1">{sendError}</p>
+      )}
       <form onSubmit={handleSend} className="mt-4 flex gap-2">
         <input
           type="text"
