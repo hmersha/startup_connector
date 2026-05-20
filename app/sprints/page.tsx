@@ -257,14 +257,14 @@ export default function SprintsPage() {
           <h2 className="discover-empty-title">No sprints yet</h2>
           <p className="discover-empty-text">
             {activeTab === "proposed"
-              ? "Find a builder on Discover and propose a small collaboration sprint."
+              ? "Find a builder on Discover and propose a sprint. A sprint is a short, low-pressure way to test collaboration before committing to anything."
               : activeTab === "active"
-              ? "Accept a proposed sprint to get started."
-              : "Completed sprints will appear here."}
+              ? "No active sprints. Accept a proposed sprint or start one from Discover."
+              : "Completed sprints will appear here once you finish one."}
           </p>
           {activeTab === "proposed" && (
             <Link href="/discover" className="btn-primary mt-4 inline-block">
-              Find Builders
+              Go to Discover
             </Link>
           )}
         </div>

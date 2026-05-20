@@ -219,10 +219,10 @@ export default function MessagesPage() {
             No messages yet
           </h2>
           <p className="text-slate-400 mb-6">
-            Start a conversation with someone from the members page.
+            Messaging unlocks after you connect. Start with a sprint on Discover to test collaboration first — then connect if it goes well.
           </p>
-          <Link href="/members" className="btn-primary inline-block">
-            Browse Members
+          <Link href="/discover" className="btn-primary inline-block">
+            Go to Discover
           </Link>
         </div>
       ) : (

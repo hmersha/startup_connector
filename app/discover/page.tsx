@@ -389,6 +389,9 @@ function BuilderCard({
             <button onClick={onProposeSprint} className="sprint-propose-btn">
               Propose Sprint
             </button>
+            <p className="text-xs text-slate-600 text-center mt-1">
+              Start small — a sprint before a cold message
+            </p>
             <div className="discover-secondary-actions">
               {isPending ? (
                 <span className="discover-action-pending text-xs">Sent</span>
