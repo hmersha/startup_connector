@@ -28,11 +28,11 @@ type Sprint = {
 };
 
 const SPRINT_TYPE_LABELS: Record<string, string> = {
-  validation: "Validation Sprint",
+  validation: "Idea Sprint",
   mvp_scope: "MVP Scope Sprint",
   build: "Build Sprint",
   gtm: "GTM Sprint",
-  cofounder_fit: "Cofounder Fit Sprint",
+  cofounder_fit: "Chemistry Sprint",
 };
 
 function formatDuration(days: number) {

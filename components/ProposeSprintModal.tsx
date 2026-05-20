@@ -10,11 +10,21 @@ export type SlimBuilder = {
 };
 
 const SPRINT_TYPES = [
-  { value: "validation", label: "Validation Sprint" },
-  { value: "mvp_scope", label: "MVP Scope Sprint" },
-  { value: "build", label: "Build Sprint" },
-  { value: "gtm", label: "GTM Sprint" },
-  { value: "cofounder_fit", label: "Cofounder Fit Sprint" },
+  {
+    value: "validation",
+    label: "Idea Sprint",
+    description: "Validate whether the problem is worth solving",
+  },
+  {
+    value: "build",
+    label: "Build Sprint",
+    description: "Ship something specific together",
+  },
+  {
+    value: "cofounder_fit",
+    label: "Chemistry Sprint",
+    description: "Test working styles before committing",
+  },
 ];
 
 const DURATION_OPTIONS = [
@@ -23,15 +33,18 @@ const DURATION_OPTIONS = [
   { days: 14, label: "2 weeks" },
 ];
 
-const COMMITMENT_OPTIONS = ["1–2 hrs/week", "3–5 hrs/week", "5–10 hrs/week", "Flexible"];
+const EFFORT_OPTIONS = [
+  { value: "Light touch (~2 hrs/wk)", label: "Light touch", sub: "~2 hrs/wk" },
+  { value: "Part-time (~5 hrs/wk)", label: "Part-time", sub: "~5 hrs/wk" },
+  { value: "Dedicated (10+ hrs/wk)", label: "Dedicated", sub: "10+ hrs/wk" },
+];
 
 type SprintForm = {
   sprint_type: string;
-  title: string;
   goal: string;
+  first_move: string;
   duration_days: number;
-  expected_commitment: string;
-  deliverables: string;
+  effort: string;
 };
 
 export default function ProposeSprintModal({
@@ -47,37 +60,36 @@ export default function ProposeSprintModal({
 
   const [form, setForm] = useState<SprintForm>({
     sprint_type: "validation",
-    title: `Validation Sprint with ${builderName}`,
     goal: "",
+    first_move: "",
     duration_days: 7,
-    expected_commitment: "3–5 hrs/week",
-    deliverables: "",
+    effort: "Part-time (~5 hrs/wk)",
   });
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
-  function handleTypeChange(type: string) {
-    const label = SPRINT_TYPES.find((t) => t.value === type)?.label ?? type;
-    setForm((f) => ({ ...f, sprint_type: type, title: `${label} with ${builderName}` }));
-  }
+  const sprintTypeLabel =
+    SPRINT_TYPES.find((t) => t.value === form.sprint_type)?.label ?? "";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     setError("");
 
+    const deliverables = form.first_move.trim()
+      ? [`First move: ${form.first_move.trim()}`]
+      : null;
+
     const { error: insertError } = await supabase.from("sprints").insert({
       proposer_id: currentUserId,
       recipient_id: builder.id,
-      title: form.title.trim(),
+      title: `${sprintTypeLabel} with ${builderName}`,
       sprint_type: form.sprint_type,
       goal: form.goal.trim(),
       duration_days: form.duration_days,
-      expected_commitment: form.expected_commitment || null,
-      deliverables: form.deliverables
-        ? form.deliverables.split("\n").map((s) => s.trim()).filter(Boolean)
-        : null,
+      expected_commitment: form.effort,
+      deliverables,
       status: "proposed",
     });
 
@@ -122,46 +134,57 @@ export default function ProposeSprintModal({
             </div>
 
             <form onSubmit={handleSubmit} className="sprint-modal-body">
+              {/* Sprint type */}
               <div>
                 <label className="label">Sprint Type</label>
-                <div className="sprint-option-grid">
+                <div className="space-y-2 mt-1">
                   {SPRINT_TYPES.map((t) => (
                     <button
                       key={t.value}
                       type="button"
-                      onClick={() => handleTypeChange(t.value)}
-                      className={`sprint-option-chip ${form.sprint_type === t.value ? "sprint-option-chip-selected" : ""}`}
+                      onClick={() => setForm((f) => ({ ...f, sprint_type: t.value }))}
+                      className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors ${
+                        form.sprint_type === t.value
+                          ? "border-indigo-500/60 bg-indigo-500/10 text-indigo-300"
+                          : "border-slate-700/50 bg-slate-800/30 text-slate-300 hover:border-slate-600/60"
+                      }`}
                     >
-                      {t.label}
+                      <span className="font-medium">{t.label}</span>
+                      <span className={`ml-2 text-xs ${form.sprint_type === t.value ? "text-indigo-400" : "text-slate-500"}`}>
+                        — {t.description}
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
 
+              {/* Goal */}
               <div>
-                <label className="label">Sprint Title</label>
-                <input
-                  type="text"
-                  value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  className="input-field"
-                  required
-                  maxLength={100}
-                />
-              </div>
-
-              <div>
-                <label className="label">Goal</label>
+                <label className="label">What&apos;s the goal?</label>
                 <textarea
                   value={form.goal}
                   onChange={(e) => setForm((f) => ({ ...f, goal: e.target.value }))}
                   className="input-field resize-none"
-                  rows={3}
-                  placeholder="What should you both accomplish by the end of this sprint?"
+                  rows={2}
+                  placeholder="What should you both accomplish by the end?"
                   required
                 />
               </div>
 
+              {/* First move */}
+              <div>
+                <label className="label">First concrete step</label>
+                <input
+                  type="text"
+                  value={form.first_move}
+                  onChange={(e) => setForm((f) => ({ ...f, first_move: e.target.value }))}
+                  className="input-field"
+                  placeholder="e.g. 30-min call to map out assumptions"
+                  required
+                />
+              </div>
+
+              {/* Duration */}
               <div>
                 <label className="label">Duration</label>
                 <div className="sprint-option-grid">
@@ -178,34 +201,24 @@ export default function ProposeSprintModal({
                 </div>
               </div>
 
+              {/* Effort */}
               <div>
-                <label className="label">Expected Commitment</label>
+                <label className="label">Effort level</label>
                 <div className="sprint-option-grid">
-                  {COMMITMENT_OPTIONS.map((c) => (
+                  {EFFORT_OPTIONS.map((opt) => (
                     <button
-                      key={c}
+                      key={opt.value}
                       type="button"
-                      onClick={() => setForm((f) => ({ ...f, expected_commitment: c }))}
-                      className={`sprint-option-chip ${form.expected_commitment === c ? "sprint-option-chip-selected" : ""}`}
+                      onClick={() => setForm((f) => ({ ...f, effort: opt.value }))}
+                      className={`sprint-option-chip flex-col gap-0 leading-tight ${
+                        form.effort === opt.value ? "sprint-option-chip-selected" : ""
+                      }`}
                     >
-                      {c}
+                      <span>{opt.label}</span>
+                      <span className="text-xs opacity-60">{opt.sub}</span>
                     </button>
                   ))}
                 </div>
-              </div>
-
-              <div>
-                <label className="label">
-                  Deliverables{" "}
-                  <span className="text-slate-500 font-normal">(optional — one per line)</span>
-                </label>
-                <textarea
-                  value={form.deliverables}
-                  onChange={(e) => setForm((f) => ({ ...f, deliverables: e.target.value }))}
-                  className="input-field resize-none"
-                  rows={2}
-                  placeholder="e.g. MVP feature list&#10;5 customer interviews&#10;Landing page draft"
-                />
               </div>
 
               {error && (
@@ -219,7 +232,7 @@ export default function ProposeSprintModal({
                   Cancel
                 </button>
                 <button type="submit" disabled={submitting} className="btn-primary">
-                  {submitting ? "Sending..." : "Send Sprint Proposal"}
+                  {submitting ? "Sending..." : "Send Proposal"}
                 </button>
               </div>
             </form>

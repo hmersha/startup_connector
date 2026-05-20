@@ -34,11 +34,11 @@ type Sprint = {
 };
 
 const SPRINT_TYPE_LABELS: Record<string, string> = {
-  validation: "Validation Sprint",
+  validation: "Idea Sprint",
   mvp_scope: "MVP Scope Sprint",
   build: "Build Sprint",
   gtm: "GTM Sprint",
-  cofounder_fit: "Cofounder Fit Sprint",
+  cofounder_fit: "Chemistry Sprint",
 };
 
 const OUTCOME_OPTIONS = [
@@ -69,6 +69,11 @@ export default function SprintRoomPage() {
   const [selectedOutcome, setSelectedOutcome] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Phase 7: connect after sprint
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionPending, setConnectionPending] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+
   useEffect(() => {
     async function load() {
       const { data: authData } = await supabase.auth.getUser();
@@ -92,14 +97,32 @@ export default function SprintRoomPage() {
 
       if (error || !data) {
         setNotFound(true);
-      } else {
-        const s = data as unknown as Sprint;
-        if (s.proposer_id !== uid && s.recipient_id !== uid) {
-          setNotFound(true);
-        } else {
-          setSprint(s);
-        }
+        setLoading(false);
+        return;
       }
+
+      const s = data as unknown as Sprint;
+      if (s.proposer_id !== uid && s.recipient_id !== uid) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+
+      setSprint(s);
+
+      // Check connection status with the other participant
+      const otherId = s.proposer_id === uid ? s.recipient_id : s.proposer_id;
+      const { data: connData } = await supabase
+        .from("connections")
+        .select("status")
+        .or(
+          `and(requester_id.eq.${uid},addressee_id.eq.${otherId}),and(requester_id.eq.${otherId},addressee_id.eq.${uid})`
+        )
+        .maybeSingle();
+
+      if (connData?.status === "accepted") setIsConnected(true);
+      if (connData?.status === "pending") setConnectionPending(true);
+
       setLoading(false);
     }
     load();
@@ -111,7 +134,7 @@ export default function SprintRoomPage() {
       .from("sprints")
       .update({ status: "accepted", accepted_at: new Date().toISOString() })
       .eq("id", sprint.id);
-    setSprint((s) => s ? { ...s, status: "accepted" } : s);
+    setSprint((s) => (s ? { ...s, status: "accepted" } : s));
   }
 
   async function handleDecline() {
@@ -123,15 +146,32 @@ export default function SprintRoomPage() {
   async function handleMarkComplete() {
     if (!sprint || !selectedOutcome) return;
     setSaving(true);
-    await supabase.from("sprints").update({
-      status: "completed",
-      completed_at: new Date().toISOString(),
-      outcome: selectedOutcome,
-    }).eq("id", sprint.id);
-    setSprint((s) => s ? { ...s, status: "completed", outcome: selectedOutcome } : s);
+    await supabase
+      .from("sprints")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        outcome: selectedOutcome,
+      })
+      .eq("id", sprint.id);
+    setSprint((s) => (s ? { ...s, status: "completed", outcome: selectedOutcome } : s));
     setShowOutcome(false);
     setSaving(false);
     setCompleting(false);
+  }
+
+  async function handleConnect() {
+    if (!sprint || !currentUserId) return;
+    setConnecting(true);
+    const otherId =
+      sprint.proposer_id === currentUserId ? sprint.recipient_id : sprint.proposer_id;
+    const { error } = await supabase.from("connections").insert({
+      requester_id: currentUserId,
+      addressee_id: otherId,
+      status: "pending",
+    });
+    if (!error) setConnectionPending(true);
+    setConnecting(false);
   }
 
   if (loading) {
@@ -150,7 +190,7 @@ export default function SprintRoomPage() {
     return (
       <AppShell title="Sprint Room">
         <div className="card p-8 text-center max-w-md">
-          <p className="text-slate-400 mb-4">Sprint not found or you don't have access.</p>
+          <p className="text-slate-400 mb-4">Sprint not found or you don&apos;t have access.</p>
           <Link href="/sprints" className="btn-secondary inline-block">Back to Sprints</Link>
         </div>
       </AppShell>
@@ -163,6 +203,10 @@ export default function SprintRoomPage() {
   const isActive = sprint.status === "accepted" || sprint.status === "active";
   const isProposed = sprint.status === "proposed";
   const isCompleted = sprint.status === "completed";
+
+  const otherParticipant = isProposer ? sprint.recipient : sprint.proposer;
+  const otherName =
+    otherParticipant?.username || otherParticipant?.name || "Builder";
 
   const statusLabel: Record<string, string> = {
     proposed: "Proposed",
@@ -264,6 +308,40 @@ export default function SprintRoomPage() {
           </div>
         )}
 
+        {/* Phase 7: Connect CTA after completion */}
+        {isCompleted && sprint.outcome !== "Not a fit" && isParticipant && (
+          <div className="card p-6">
+            {isConnected ? (
+              <div className="flex items-center gap-3">
+                <span className="text-emerald-400 text-sm">Connected with {otherName}</span>
+                <Link href="/messages" className="btn-secondary text-sm py-1.5 px-3">
+                  Message
+                </Link>
+              </div>
+            ) : connectionPending ? (
+              <p className="text-sm text-slate-400">
+                Connection request sent to {otherName} — waiting for them to accept.
+              </p>
+            ) : (
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-200">Keep the momentum going</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Connect with {otherName} to stay in touch
+                  </p>
+                </div>
+                <button
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="btn-primary flex-shrink-0"
+                >
+                  {connecting ? "Sending..." : `Connect`}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Actions */}
         {isParticipant && (
           <div className="flex flex-wrap gap-3">
@@ -275,7 +353,10 @@ export default function SprintRoomPage() {
             )}
 
             {isActive && !showOutcome && (
-              <button onClick={() => { setCompleting(true); setShowOutcome(true); }} className="btn-primary">
+              <button
+                onClick={() => { setCompleting(true); setShowOutcome(true); }}
+                className="btn-primary"
+              >
                 Mark Complete
               </button>
             )}
@@ -303,7 +384,10 @@ export default function SprintRoomPage() {
                   >
                     {saving ? "Saving..." : "Confirm"}
                   </button>
-                  <button onClick={() => { setShowOutcome(false); setCompleting(false); }} className="btn-secondary">
+                  <button
+                    onClick={() => { setShowOutcome(false); setCompleting(false); }}
+                    className="btn-secondary"
+                  >
                     Cancel
                   </button>
                 </div>
