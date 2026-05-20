@@ -3437,6 +3437,10 @@
     @apply bg-amber-500/10 text-amber-400 border border-amber-500/20;
   }
 
+  .trust-badge-sprint {
+    @apply bg-teal-500/10 text-teal-400 border border-teal-500/20;
+  }
+
   /* Sprint propose button — primary action on discover card */
   .sprint-propose-btn {
     @apply w-full py-2 px-3 rounded-lg text-sm font-medium transition-all duration-150

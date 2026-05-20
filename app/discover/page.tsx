@@ -94,10 +94,12 @@ function computeMatchScore(
     looking_for: string[];
     skills: string[];
     school: string | null;
+    collaboration_intent: string | null;
   },
   connectedIds: Set<string>,
   pendingIds: Set<string>,
-  dismissedIds: Set<string>
+  dismissedIds: Set<string>,
+  sprintCounts: Map<string, number>
 ): { score: number; reasons: string[] } {
   let score = 0;
   const reasons: string[] = [];
@@ -175,6 +177,26 @@ function computeMatchScore(
 
   if (candidate.one_liner) score += 1;
 
+  // Phase 9: sprint history — proven follow-through
+  const candidateSprintCount = sprintCounts.get(candidate.id) ?? 0;
+  if (candidateSprintCount >= 3) {
+    score += 5;
+    reasons.push("Proven collaborator");
+  } else if (candidateSprintCount >= 1) {
+    score += 3;
+    reasons.push("Has sprinted before");
+  }
+
+  // Phase 9: collaboration intent alignment
+  if (
+    candidate.collaboration_intent &&
+    currentUser.collaboration_intent &&
+    candidate.collaboration_intent === currentUser.collaboration_intent
+  ) {
+    score += 3;
+    reasons.push("Aligned on collaboration style");
+  }
+
   if (reasons.length === 0 && score > 0) {
     reasons.push("Potential collaborator");
   }
@@ -222,6 +244,7 @@ function BuilderCard({
   onProposeSprint,
   isConnecting,
   showMatchReasons = false,
+  sprintCount = 0,
 }: {
   builder: ScoredBuilder | BuilderProfile;
   isSaved: boolean;
@@ -233,6 +256,7 @@ function BuilderCard({
   onProposeSprint: () => void;
   isConnecting: boolean;
   showMatchReasons?: boolean;
+  sprintCount?: number;
 }) {
   const displayName = builder.username || builder.name || "Builder";
   const initials = displayName.slice(0, 2).toUpperCase();
@@ -246,6 +270,7 @@ function BuilderCard({
   const hasClearIntent = Boolean(builder.collaboration_intent);
   const hasProject = Boolean(builder.project_name);
   const hasTraction = Boolean(builder.traction_signal);
+  const hasSprintHistory = sprintCount > 0;
 
   return (
     <div className="discover-card-v2">
@@ -275,8 +300,13 @@ function BuilderCard({
       </div>
 
       {/* Trust badges */}
-      {showDetails && (isActiveBuilder || hasClearIntent || hasProject) && (
+      {showDetails && (isActiveBuilder || hasClearIntent || hasProject || hasSprintHistory) && (
         <div className="builder-trust-badges">
+          {hasSprintHistory && (
+            <span className="trust-badge trust-badge-sprint">
+              {sprintCount === 1 ? "Sprinted once" : `${sprintCount} sprints`}
+            </span>
+          )}
           {isActiveBuilder && <span className="trust-badge trust-badge-active">Active this week</span>}
           {hasClearIntent && <span className="trust-badge trust-badge-intent">Clear intent</span>}
           {hasProject && hasTraction && <span className="trust-badge trust-badge-momentum">Has momentum</span>}
@@ -481,6 +511,7 @@ export default function DiscoverPage() {
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [passedIds, setPassedIds] = useState<Set<string>>(new Set());
   const [sprintModalBuilder, setSprintModalBuilder] = useState<BuilderProfile | null>(null);
+  const [sprintCounts, setSprintCounts] = useState<Map<string, number>>(new Map());
 
   // Pagination for All Builders
   const [page, setPage] = useState(1);
@@ -511,6 +542,7 @@ export default function DiscoverPage() {
       feedbackResult,
       savedResult,
       postsResult,
+      completedSprintsResult,
     ] = await Promise.all([
       // Current user's profile
       supabase.from("users").select("*").eq("id", currentUser.id).single(),
@@ -550,6 +582,11 @@ export default function DiscoverPage() {
         .select("id, title, category, created_at, users(name, username)")
         .order("created_at", { ascending: false })
         .limit(5),
+      // Completed sprint counts for trust signals + ranking
+      supabase
+        .from("sprints")
+        .select("proposer_id, recipient_id")
+        .eq("status", "completed"),
     ]);
 
     if (profileResult.data) {
@@ -579,6 +616,15 @@ export default function DiscoverPage() {
 
     if (postsResult.data) {
       setRecentPosts(postsResult.data as unknown as RecentPost[]);
+    }
+
+    if (completedSprintsResult.data) {
+      const counts = new Map<string, number>();
+      completedSprintsResult.data.forEach((s: { proposer_id: string; recipient_id: string }) => {
+        counts.set(s.proposer_id, (counts.get(s.proposer_id) ?? 0) + 1);
+        counts.set(s.recipient_id, (counts.get(s.recipient_id) ?? 0) + 1);
+      });
+      setSprintCounts(counts);
     }
 
     setLoading(false);
@@ -653,10 +699,12 @@ export default function DiscoverPage() {
             looking_for: userProfile.looking_for || [],
             skills: userProfile.skills || [],
             school: userProfile.school,
+            collaboration_intent: userProfile.collaboration_intent,
           },
           connectedIds,
           pendingIds,
-          dismissedIds
+          dismissedIds,
+          sprintCounts
         );
         return { ...candidate, score, matchReasons: reasons };
       })
@@ -665,7 +713,7 @@ export default function DiscoverPage() {
       .slice(0, 12);
 
     return scored;
-  }, [userProfile, candidates, connectedIds, pendingIds, dismissedIds, passedIds]);
+  }, [userProfile, candidates, connectedIds, pendingIds, dismissedIds, passedIds, sprintCounts]);
 
   // Paginated All Builders
   const paginatedBuilders = useMemo(() => {
@@ -924,6 +972,7 @@ export default function DiscoverPage() {
                 onProposeSprint={() => setSprintModalBuilder(builder)}
                 isConnecting={connectingId === builder.id}
                 showMatchReasons={activeTab === "for-you"}
+                sprintCount={sprintCounts.get(builder.id) ?? 0}
               />
             ))}
           </div>
