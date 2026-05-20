@@ -104,8 +104,30 @@ export default function ConversationPage({
       )
       .subscribe();
 
+    // Polling fallback: refetch every 4 seconds in case realtime is blocked by RLS
+    const poll = setInterval(async () => {
+      const { data } = await supabase
+        .from("messages")
+        .select("id, body, sender_id, created_at")
+        .eq("conversation_id", id)
+        .order("created_at", { ascending: true });
+
+      if (data) {
+        setMessages((prev) => {
+          if (
+            data.length === prev.length &&
+            data.every((m, i) => m.id === prev[i]?.id)
+          ) {
+            return prev; // no change, skip re-render
+          }
+          return data as Message[];
+        });
+      }
+    }, 4000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(poll);
     };
   }, [id]);
 
