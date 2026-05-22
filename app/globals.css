@@ -3477,4 +3477,366 @@
   .discover-action-pass {
     @apply text-slate-500 hover:text-slate-300;
   }
+
+  /* ============================================================================
+     DISCOVER REDESIGN — d-* prefix
+     ============================================================================ */
+
+  /* Hero */
+  .d-hero {
+    @apply mb-6;
+  }
+
+  .d-hero-eyebrow {
+    @apply flex items-center gap-2 mb-3;
+  }
+
+  .d-hero-badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
+           bg-indigo-500/10 text-indigo-400 border border-indigo-500/20;
+  }
+
+  .d-hero-headline {
+    @apply text-2xl sm:text-3xl font-semibold text-slate-100 tracking-tight mb-1;
+  }
+
+  .d-hero-sub {
+    @apply text-slate-400 text-sm mb-5;
+  }
+
+  /* Search */
+  .d-search-row {
+    @apply relative mb-4;
+  }
+
+  .d-search-icon {
+    @apply absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none;
+  }
+
+  .d-search-input {
+    @apply w-full bg-slate-800/50 border border-slate-700/50 rounded-xl
+           pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-500
+           focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/30
+           transition-colors duration-150;
+  }
+
+  /* Filter chips */
+  .d-filter-row {
+    @apply flex items-center gap-2 flex-wrap;
+  }
+
+  .d-filter-chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
+           border transition-all duration-150 cursor-pointer
+           bg-slate-800/40 border-slate-700/40 text-slate-400
+           hover:bg-slate-700/50 hover:text-slate-300 hover:border-slate-600/50;
+  }
+
+  .d-filter-chip-active {
+    @apply bg-indigo-500/15 border-indigo-500/40 text-indigo-300
+           hover:bg-indigo-500/20 hover:border-indigo-400/50 hover:text-indigo-200;
+  }
+
+  /* Stats row */
+  .d-stats-row {
+    @apply flex items-center gap-4 mt-4 pt-4 border-t border-slate-800/60;
+  }
+
+  .d-stat {
+    @apply flex items-center gap-1.5 text-xs text-slate-500;
+  }
+
+  .d-stat-value {
+    @apply font-semibold text-slate-300;
+  }
+
+  /* ── Top Opportunity Card ── */
+  .d-top-opp {
+    @apply relative rounded-2xl border p-5 mb-6
+           bg-gradient-to-br from-indigo-950/40 via-slate-900/60 to-slate-900/40
+           border-indigo-500/20 shadow-lg;
+  }
+
+  .d-top-opp-label {
+    @apply absolute top-4 right-4 inline-flex items-center gap-1
+           px-2.5 py-1 rounded-full text-xs font-semibold
+           bg-indigo-500/20 text-indigo-300 border border-indigo-500/30;
+  }
+
+  .d-top-opp-header {
+    @apply flex items-start gap-3 mb-4;
+  }
+
+  .d-top-opp-avatar {
+    @apply w-12 h-12 rounded-full bg-gradient-to-br from-indigo-600 to-violet-700
+           flex items-center justify-center text-white font-bold text-base flex-shrink-0;
+  }
+
+  .d-top-opp-meta {
+    @apply flex-1 min-w-0;
+  }
+
+  .d-top-opp-name {
+    @apply text-base font-semibold text-slate-100 leading-tight;
+  }
+
+  .d-top-opp-project {
+    @apply text-xs text-indigo-400 font-medium mt-0.5;
+  }
+
+  .d-top-opp-oneliner {
+    @apply text-sm text-slate-400 mt-1 leading-relaxed;
+  }
+
+  .d-top-opp-reasons {
+    @apply space-y-1.5 mb-4;
+  }
+
+  .d-top-opp-reason {
+    @apply flex items-start gap-2 text-sm text-slate-300;
+  }
+
+  .d-top-opp-reason-dot {
+    @apply w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0 mt-1.5;
+  }
+
+  .d-top-opp-sprint {
+    @apply rounded-xl border border-indigo-500/20 p-3.5 mb-4;
+    background: rgba(99, 102, 241, 0.06);
+  }
+
+  .d-top-opp-sprint-header {
+    @apply flex items-center gap-2 mb-2;
+  }
+
+  .d-top-opp-sprint-label {
+    @apply text-xs text-slate-500 uppercase tracking-wider font-medium;
+  }
+
+  .d-top-opp-sprint-type {
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium
+           bg-violet-500/15 text-violet-300 border border-violet-500/20;
+  }
+
+  .d-top-opp-sprint-goal {
+    @apply text-sm text-slate-300 leading-relaxed;
+  }
+
+  .d-top-opp-actions {
+    @apply flex items-center gap-3;
+  }
+
+  .d-top-opp-cta {
+    @apply flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-center
+           bg-indigo-500 text-white hover:bg-indigo-400
+           transition-colors duration-150;
+  }
+
+  .d-top-opp-secondary {
+    @apply py-2.5 px-4 rounded-xl text-sm font-medium
+           bg-slate-800/60 text-slate-300 border border-slate-700/50
+           hover:bg-slate-700/60 hover:text-slate-200
+           transition-colors duration-150;
+  }
+
+  /* ── Compact Match Queue ── */
+  .d-compact-queue {
+    @apply mb-6;
+  }
+
+  .d-compact-queue-header {
+    @apply flex items-center justify-between mb-3;
+  }
+
+  .d-compact-queue-label {
+    @apply text-sm font-semibold text-slate-300;
+  }
+
+  .d-compact-list {
+    @apply space-y-2;
+  }
+
+  .d-compact-card {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl border
+           bg-slate-800/30 border-slate-700/40
+           hover:bg-slate-800/50 hover:border-slate-600/50
+           transition-all duration-150 cursor-default;
+  }
+
+  .d-compact-avatar {
+    @apply w-9 h-9 rounded-full bg-gradient-to-br from-slate-600 to-slate-700
+           flex items-center justify-center text-xs font-bold text-slate-200 flex-shrink-0;
+  }
+
+  .d-compact-body {
+    @apply flex-1 min-w-0;
+  }
+
+  .d-compact-name {
+    @apply text-sm font-medium text-slate-200 truncate;
+  }
+
+  .d-compact-hint {
+    @apply text-xs text-slate-500 truncate mt-0.5;
+  }
+
+  .d-compact-actions {
+    @apply flex items-center gap-2 flex-shrink-0;
+  }
+
+  .d-compact-sprint-btn {
+    @apply text-xs px-2.5 py-1.5 rounded-lg font-medium
+           bg-indigo-500/15 text-indigo-300 border border-indigo-500/25
+           hover:bg-indigo-500/25 hover:text-indigo-200
+           transition-colors duration-150;
+  }
+
+  .d-compact-connect-btn {
+    @apply text-xs px-2.5 py-1.5 rounded-lg font-medium
+           bg-slate-700/50 text-slate-400 border border-slate-600/40
+           hover:bg-slate-700/70 hover:text-slate-300
+           transition-colors duration-150;
+  }
+
+  /* ── Sprint-ready Ideas ── */
+  .d-ideas-section {
+    @apply mb-6;
+  }
+
+  .d-ideas-header {
+    @apply flex items-center justify-between mb-3;
+  }
+
+  .d-ideas-label {
+    @apply text-sm font-semibold text-slate-300;
+  }
+
+  .d-ideas-grid {
+    @apply grid gap-3;
+  }
+
+  @media (min-width: 640px) {
+    .d-ideas-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .d-idea-card {
+    @apply rounded-xl border px-4 py-3
+           bg-slate-800/20 border-slate-700/30
+           hover:border-slate-600/50 hover:bg-slate-800/40
+           transition-all duration-150;
+  }
+
+  .d-idea-top {
+    @apply flex items-center justify-between mb-2;
+  }
+
+  .d-idea-category {
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium;
+  }
+
+  .d-idea-category-build {
+    @apply bg-sky-500/10 text-sky-400 border border-sky-500/20;
+  }
+
+  .d-idea-category-validate {
+    @apply bg-emerald-500/10 text-emerald-400 border border-emerald-500/20;
+  }
+
+  .d-idea-category-feedback {
+    @apply bg-amber-500/10 text-amber-400 border border-amber-500/20;
+  }
+
+  .d-idea-category-default {
+    @apply bg-slate-500/10 text-slate-400 border border-slate-500/20;
+  }
+
+  .d-idea-age {
+    @apply text-xs text-slate-600;
+  }
+
+  .d-idea-title {
+    @apply text-sm font-medium text-slate-200 leading-snug mb-1;
+  }
+
+  .d-idea-author {
+    @apply text-xs text-slate-500;
+  }
+
+  .d-idea-sprint-btn {
+    @apply mt-2.5 w-full text-xs py-1.5 rounded-lg font-medium text-center
+           bg-slate-700/50 text-slate-400 border border-slate-600/30
+           hover:bg-indigo-500/15 hover:text-indigo-300 hover:border-indigo-500/25
+           transition-all duration-150;
+  }
+
+  /* ── Right Rail: Your Next Moves ── */
+  .d-next-move-widget {
+    @apply rounded-xl border bg-slate-800/30 border-slate-700/40 p-4 mb-4;
+  }
+
+  .d-next-move-title {
+    @apply text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3;
+  }
+
+  .d-next-move-list {
+    @apply space-y-2;
+  }
+
+  .d-next-move-item {
+    @apply flex items-start gap-2.5 text-sm text-slate-300
+           py-1.5 rounded-lg cursor-pointer
+           hover:text-slate-100 transition-colors duration-150;
+  }
+
+  .d-next-move-icon {
+    @apply w-5 h-5 flex-shrink-0 text-indigo-400 mt-0.5;
+  }
+
+  .d-next-move-text {
+    @apply leading-snug;
+  }
+
+  .d-next-move-sub {
+    @apply block text-xs text-slate-500 mt-0.5;
+  }
+
+  /* ── Right Rail: Recent Momentum ── */
+  .d-momentum-widget {
+    @apply rounded-xl border bg-slate-800/30 border-slate-700/40 p-4 mb-4;
+  }
+
+  .d-momentum-title {
+    @apply text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3;
+  }
+
+  .d-momentum-list {
+    @apply space-y-2.5;
+  }
+
+  .d-momentum-item {
+    @apply flex items-start gap-2.5;
+  }
+
+  .d-momentum-dot {
+    @apply w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0 mt-1.5;
+  }
+
+  .d-momentum-body {
+    @apply flex-1 min-w-0;
+  }
+
+  .d-momentum-text {
+    @apply text-xs text-slate-300 leading-snug;
+  }
+
+  .d-momentum-time {
+    @apply text-xs text-slate-600 mt-0.5;
+  }
+
+  /* Section divider */
+  .d-section-divider {
+    @apply border-t border-slate-800/60 my-6;
+  }
 }

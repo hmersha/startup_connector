@@ -222,6 +222,237 @@ function formatTimeAgo(dateString: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+// === DISCOVER REDESIGN HELPERS ===
+
+const SPRINT_TYPE_LABELS: Record<string, string> = {
+  validation: "Feedback Sprint",
+  mvp_scope: "MVP Scope Sprint",
+  build: "Build Sprint",
+};
+
+function getSuggestedSprint(builder: BuilderProfile): { type: string; goal: string } {
+  const lookingFor = builder.looking_for || [];
+  const hasTraction = Boolean(builder.traction_signal);
+  const stage = builder.stage;
+
+  if (lookingFor.some((l) => ["cofounder", "advisor"].includes(l))) {
+    return {
+      type: "validation",
+      goal: `Get feedback on ${builder.project_name || "your idea"} and see if you're aligned`,
+    };
+  }
+  if (stage === "idea" || stage === "prototype") {
+    return {
+      type: "mvp_scope",
+      goal: `Map out the first version of ${builder.project_name || "the project"} together`,
+    };
+  }
+  if (hasTraction) {
+    return {
+      type: "build",
+      goal: `Test one growth hypothesis to validate what's working`,
+    };
+  }
+  return {
+    type: "validation",
+    goal: `Share feedback on each other's ideas and find a common angle`,
+  };
+}
+
+function getMomentumSignal(builder: BuilderProfile): string | null {
+  if (builder.traction_signal) return builder.traction_signal;
+  if (builder.project_name && builder.stage === "users") return `Building ${builder.project_name}`;
+  if (builder.stage === "revenue") return "Has revenue";
+  return null;
+}
+
+// === TOP OPPORTUNITY CARD ===
+
+function TopOpportunityCard({
+  builder,
+  isSaved,
+  isPending,
+  isConnected,
+  isConnecting,
+  onProposeSprint,
+  onConnect,
+  onSave,
+  onPass,
+}: {
+  builder: ScoredBuilder;
+  isSaved: boolean;
+  isPending: boolean;
+  isConnected: boolean;
+  isConnecting: boolean;
+  onProposeSprint: () => void;
+  onConnect: () => void;
+  onSave: () => void;
+  onPass: () => void;
+}) {
+  const displayName = builder.username || builder.name || "Builder";
+  const initials = displayName.slice(0, 2).toUpperCase();
+  const suggested = getSuggestedSprint(builder);
+
+  return (
+    <div className="d-top-opp">
+      <span className="d-top-opp-label">
+        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+        Top Match
+      </span>
+
+      <div className="d-top-opp-header">
+        <div className="d-top-opp-avatar">{initials}</div>
+        <div className="d-top-opp-meta">
+          <p className="d-top-opp-name">{displayName}</p>
+          {builder.project_name && (
+            <p className="d-top-opp-project">{builder.project_name}</p>
+          )}
+          {builder.one_liner && (
+            <p className="d-top-opp-oneliner">{builder.one_liner}</p>
+          )}
+        </div>
+      </div>
+
+      {builder.matchReasons.length > 0 && (
+        <div className="d-top-opp-reasons">
+          {builder.matchReasons.slice(0, 3).map((reason, i) => (
+            <div key={i} className="d-top-opp-reason">
+              <span className="d-top-opp-reason-dot" />
+              {reason}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="d-top-opp-sprint">
+        <div className="d-top-opp-sprint-header">
+          <span className="d-top-opp-sprint-label">Suggested sprint</span>
+          <span className="d-top-opp-sprint-type">
+            {SPRINT_TYPE_LABELS[suggested.type] ?? suggested.type}
+          </span>
+        </div>
+        <p className="d-top-opp-sprint-goal">{suggested.goal}</p>
+      </div>
+
+      <div className="d-top-opp-actions">
+        {isConnected ? (
+          <Link href="/messages" className="d-top-opp-cta">Message</Link>
+        ) : (
+          <button onClick={onProposeSprint} className="d-top-opp-cta">
+            Propose this sprint
+          </button>
+        )}
+        <div className="flex items-center gap-2">
+          {!isConnected && !isPending && (
+            <button
+              onClick={onConnect}
+              disabled={isConnecting}
+              className="d-top-opp-secondary"
+            >
+              {isConnecting ? "..." : "Connect"}
+            </button>
+          )}
+          {isPending && (
+            <span className="d-top-opp-secondary text-slate-500 cursor-default">Sent</span>
+          )}
+          <button
+            onClick={onSave}
+            className={`d-top-opp-secondary ${isSaved ? "text-indigo-300 border-indigo-500/30" : ""}`}
+          >
+            {isSaved ? "Saved" : "Save"}
+          </button>
+          <button onClick={onPass} className="d-top-opp-secondary text-slate-500">
+            Pass
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// === COMPACT MATCH CARD ===
+
+function CompactMatchCard({
+  builder,
+  isPending,
+  isConnected,
+  isConnecting,
+  onProposeSprint,
+  onConnect,
+}: {
+  builder: ScoredBuilder;
+  isPending: boolean;
+  isConnected: boolean;
+  isConnecting: boolean;
+  onProposeSprint: () => void;
+  onConnect: () => void;
+}) {
+  const displayName = builder.username || builder.name || "Builder";
+  const initials = displayName.slice(0, 2).toUpperCase();
+  const hint =
+    builder.matchReasons[0] ??
+    (builder.project_name ? `Working on ${builder.project_name}` : null) ??
+    builder.one_liner ??
+    "Potential collaborator";
+
+  return (
+    <div className="d-compact-card">
+      <div className="d-compact-avatar">{initials}</div>
+      <div className="d-compact-body">
+        <p className="d-compact-name">{displayName}</p>
+        <p className="d-compact-hint">{hint}</p>
+      </div>
+      <div className="d-compact-actions">
+        {isConnected ? (
+          <Link href="/messages" className="d-compact-connect-btn">Message</Link>
+        ) : (
+          <>
+            <button onClick={onProposeSprint} className="d-compact-sprint-btn">
+              Sprint
+            </button>
+            {isPending ? (
+              <span className="d-compact-connect-btn text-slate-600 cursor-default">Sent</span>
+            ) : (
+              <button onClick={onConnect} disabled={isConnecting} className="d-compact-connect-btn">
+                {isConnecting ? "..." : "Connect"}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// === IDEA CARD ===
+
+const IDEA_CATEGORY_CLASS: Record<string, string> = {
+  build: "d-idea-category-build",
+  validate: "d-idea-category-validate",
+  feedback: "d-idea-category-feedback",
+};
+
+function IdeaCard({ post }: { post: RecentPost }) {
+  const author = post.users?.[0]?.username || post.users?.[0]?.name || "Someone";
+  const catClass = IDEA_CATEGORY_CLASS[post.category] ?? "d-idea-category-default";
+
+  return (
+    <div className="d-idea-card">
+      <div className="d-idea-top">
+        <span className={`d-idea-category ${catClass}`}>{post.category}</span>
+        <span className="d-idea-age">{formatTimeAgo(post.created_at)}</span>
+      </div>
+      <p className="d-idea-title">{post.title}</p>
+      <p className="d-idea-author">by {author}</p>
+      <Link href={`/posts/${post.id}`} className="d-idea-sprint-btn block text-center">
+        View &amp; Collaborate
+      </Link>
+    </div>
+  );
+}
+
 // === BUILDER CARD COMPONENT ===
 
 const COLLAB_INTENT_LABELS: Record<string, string> = {
@@ -514,7 +745,13 @@ export default function DiscoverPage() {
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [passedIds, setPassedIds] = useState<Set<string>>(new Set());
   const [sprintModalBuilder, setSprintModalBuilder] = useState<BuilderProfile | null>(null);
+  const [sprintModalDefaultType, setSprintModalDefaultType] = useState<string | undefined>();
+  const [sprintModalDefaultGoal, setSprintModalDefaultGoal] = useState<string | undefined>();
   const [sprintCounts, setSprintCounts] = useState<Map<string, number>>(new Map());
+
+  // Search + filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState("all");
 
   // Pagination for All Builders
   const [page, setPage] = useState(1);
@@ -718,6 +955,38 @@ export default function DiscoverPage() {
     return scored;
   }, [userProfile, candidates, connectedIds, pendingIds, dismissedIds, passedIds, sprintCounts]);
 
+  // Filtered "For You" matches (search + filter chips)
+  const filteredMatches = useMemo(() => {
+    let results = forYouMatches;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      results = results.filter((b) =>
+        [b.name, b.username, b.one_liner, b.project_name, b.traction_signal]
+          .concat(b.categories, b.skills, b.looking_for)
+          .some((v) => v?.toLowerCase().includes(q))
+      );
+    }
+
+    if (activeFilter === "sprint-ready") {
+      results = results.filter(
+        (b) => (sprintCounts.get(b.id) ?? 0) > 0 || Boolean(b.collaboration_intent)
+      );
+    } else if (activeFilter === "has-traction") {
+      results = results.filter((b) => Boolean(b.traction_signal));
+    } else if (activeFilter === "same-school") {
+      results = results.filter(
+        (b) =>
+          userProfile?.school &&
+          b.school?.toLowerCase() === userProfile.school?.toLowerCase()
+      );
+    } else if (activeFilter === "saved") {
+      results = results.filter((b) => savedIds.has(b.id));
+    }
+
+    return results;
+  }, [forYouMatches, searchQuery, activeFilter, sprintCounts, userProfile, savedIds]);
+
   // Paginated All Builders
   const paginatedBuilders = useMemo(() => {
     const filtered = allBuilders.filter((b) => !passedIds.has(b.id));
@@ -807,6 +1076,15 @@ export default function DiscoverPage() {
     [user, savedIds]
   );
 
+  const openSprintModal = useCallback(
+    (builder: BuilderProfile, defaultType?: string, defaultGoal?: string) => {
+      setSprintModalBuilder(builder);
+      setSprintModalDefaultType(defaultType);
+      setSprintModalDefaultGoal(defaultGoal);
+    },
+    []
+  );
+
   // Check if user has builder card
   const hasBuilderCard =
     userProfile &&
@@ -859,8 +1137,82 @@ export default function DiscoverPage() {
   }
 
   // Right rail content
+  const activeSprintCount = sprintCounts.get(user?.id ?? "") ?? 0;
+
   const rightRailContent = (
     <>
+      {/* Your Next Moves */}
+      <div className="d-next-move-widget">
+        <p className="d-next-move-title">Your Next Moves</p>
+        <div className="d-next-move-list">
+          {!hasBuilderCard && (
+            <Link href="/profile?tab=builder" className="d-next-move-item">
+              <svg className="d-next-move-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span className="d-next-move-text">
+                Complete your Builder Card
+                <span className="d-next-move-sub">Get better matches + appear in others' results</span>
+              </span>
+            </Link>
+          )}
+          {filteredMatches.length > 0 && (
+            <button
+              onClick={() => { const s = getSuggestedSprint(filteredMatches[0]); openSprintModal(filteredMatches[0], s.type, s.goal); }}
+              className="d-next-move-item w-full text-left"
+            >
+              <svg className="d-next-move-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span className="d-next-move-text">
+                Propose a sprint to your top match
+                <span className="d-next-move-sub">Start with a small, structured collaboration</span>
+              </span>
+            </button>
+          )}
+          <Link href="/sprints" className="d-next-move-item">
+            <svg className="d-next-move-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <span className="d-next-move-text">
+              View your sprints
+              {activeSprintCount > 0 && (
+                <span className="d-next-move-sub">{activeSprintCount} sprint{activeSprintCount !== 1 ? "s" : ""} completed</span>
+              )}
+            </span>
+          </Link>
+          <Link href="/feed" className="d-next-move-item">
+            <svg className="d-next-move-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+            </svg>
+            <span className="d-next-move-text">
+              Post in the community feed
+              <span className="d-next-move-sub">Share what you're building</span>
+            </span>
+          </Link>
+        </div>
+      </div>
+
+      {/* Recent Momentum */}
+      {recentPosts.length > 0 && (
+        <div className="d-momentum-widget">
+          <p className="d-momentum-title">Community Momentum</p>
+          <div className="d-momentum-list">
+            {recentPosts.slice(0, 4).map((post) => (
+              <Link key={post.id} href={`/posts/${post.id}`} className="d-momentum-item hover:opacity-80 transition-opacity">
+                <span className="d-momentum-dot" />
+                <div className="d-momentum-body">
+                  <p className="d-momentum-text">{post.title}</p>
+                  <p className="d-momentum-time">
+                    {post.users?.[0]?.username || post.users?.[0]?.name || "Someone"} · {formatTimeAgo(post.created_at)}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Saved Builders */}
       {savedBuilders.length > 0 && (
         <div className="rail-widget">
@@ -887,20 +1239,27 @@ export default function DiscoverPage() {
           </div>
         </div>
       )}
-
-      {/* Community Highlights */}
-      <CommunityHighlights posts={recentPosts} />
     </>
   );
 
   const currentBuilders = activeTab === "for-you" ? forYouMatches : paginatedBuilders;
 
+  // Filter options for "For You" tab
+  const filterOptions = [
+    { key: "all", label: "All" },
+    { key: "sprint-ready", label: "Sprint-ready" },
+    { key: "has-traction", label: "Has traction" },
+    ...(userProfile?.school ? [{ key: "same-school", label: "Same school" }] : []),
+    ...(savedIds.size > 0 ? [{ key: "saved", label: "Saved" }] : []),
+  ];
+
+  const topMatch = filteredMatches[0] ?? null;
+  const nextMatches = filteredMatches.slice(1, 5);
+  const ideaPosts = recentPosts.slice(0, 4);
+
   return (
     <>
-    <PageShell
-      title="Find teammates for your next venture"
-      rail={rightRailContent}
-    >
+    <PageShell rail={rightRailContent}>
       {/* Tabs */}
       <div className="discover-tabs">
         <button
@@ -920,77 +1279,239 @@ export default function DiscoverPage() {
         </button>
       </div>
 
-      {/* Builder Card Incomplete Notice */}
-      {!hasBuilderCard && (
-        <div className="discover-notice">
-          <svg className="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span className="flex-1">
-            Complete your Builder Card to get better matches and appear in others' results.
-          </span>
-          <Link href="/profile?tab=builder" className="btn-primary text-sm px-3 py-1.5">
-            Complete Profile
-          </Link>
-        </div>
+      {/* ── FOR YOU TAB ── */}
+      {activeTab === "for-you" && (
+        <>
+          {/* Hero */}
+          <div className="d-hero">
+            <div className="d-hero-eyebrow">
+              <span className="d-hero-badge">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zm4.22 1.22a1 1 0 00-1.414 0L12.95 5.05a1 1 0 001.414 1.414l.857-.857A1 1 0 0015.22 4.22zM17 9a1 1 0 100 2h1a1 1 0 100-2h-1zM6.05 12.95a1 1 0 00-1.414-1.414L3.78 12.39a1 1 0 001.414 1.414l.857-.857zM4 10a1 1 0 10-2 0 1 1 0 002 0zM7.05 4.22a1 1 0 00-1.414 1.414l.857.857a1 1 0 001.414-1.414L7.05 4.22z" />
+                </svg>
+                Sprint-first matching
+              </span>
+            </div>
+            <h1 className="d-hero-headline">Find someone worth building with.</h1>
+            <p className="d-hero-sub">
+              Ranked by compatibility · Propose a sprint before a cold message
+            </p>
+
+            {/* Search */}
+            <div className="d-search-row">
+              <svg className="d-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                className="d-search-input"
+                placeholder="Search by name, skill, project, or traction..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            {/* Filter chips */}
+            <div className="d-filter-row">
+              {filterOptions.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => setActiveFilter(f.key)}
+                  className={`d-filter-chip ${activeFilter === f.key ? "d-filter-chip-active" : ""}`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Incomplete builder card notice */}
+          {!hasBuilderCard && (
+            <div className="discover-notice mb-4">
+              <svg className="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="flex-1">
+                Complete your Builder Card to get better matches and appear in others' results.
+              </span>
+              <Link href="/profile?tab=builder" className="btn-primary text-sm px-3 py-1.5">
+                Complete Profile
+              </Link>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {filteredMatches.length === 0 ? (
+            <div className="discover-empty">
+              <div className="discover-empty-icon">
+                <svg className="w-12 h-12 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <h2 className="discover-empty-title">
+                {searchQuery ? "No results for that search" : "No matches yet"}
+              </h2>
+              <p className="discover-empty-text">
+                {searchQuery
+                  ? "Try different keywords or clear your search."
+                  : !hasBuilderCard
+                  ? "Complete your Builder Card to get matched with other builders."
+                  : "Try a different filter or check back as more builders join."}
+              </p>
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="btn-secondary">
+                  Clear search
+                </button>
+              )}
+              {!hasBuilderCard && !searchQuery && (
+                <Link href="/profile?tab=builder" className="btn-primary">
+                  Complete Builder Card
+                </Link>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Top Opportunity */}
+              {topMatch && (
+                <TopOpportunityCard
+                  builder={topMatch}
+                  isSaved={savedIds.has(topMatch.id)}
+                  isPending={pendingIds.has(topMatch.id)}
+                  isConnected={connectedIds.has(topMatch.id)}
+                  isConnecting={connectingId === topMatch.id}
+                  onProposeSprint={() => {
+                    const s = getSuggestedSprint(topMatch);
+                    openSprintModal(topMatch, s.type, s.goal);
+                  }}
+                  onConnect={() => handleConnect(topMatch.id)}
+                  onSave={() => handleSave(topMatch.id)}
+                  onPass={() => handlePass(topMatch.id)}
+                />
+              )}
+
+              {/* Next Best Matches */}
+              {nextMatches.length > 0 && (
+                <div className="d-compact-queue">
+                  <div className="d-compact-queue-header">
+                    <span className="d-compact-queue-label">Next Best Matches</span>
+                    <span className="text-xs text-slate-500">{nextMatches.length} more</span>
+                  </div>
+                  <div className="d-compact-list">
+                    {nextMatches.map((builder) => (
+                      <CompactMatchCard
+                        key={builder.id}
+                        builder={builder}
+                        isPending={pendingIds.has(builder.id)}
+                        isConnected={connectedIds.has(builder.id)}
+                        isConnecting={connectingId === builder.id}
+                        onProposeSprint={() => {
+                          const s = getSuggestedSprint(builder);
+                          openSprintModal(builder, s.type, s.goal);
+                        }}
+                        onConnect={() => handleConnect(builder.id)}
+                      />
+                    ))}
+                  </div>
+
+                  {filteredMatches.length > 5 && (
+                    <div className="mt-4">
+                      <p className="text-xs text-slate-500 text-center mb-3">
+                        + {filteredMatches.length - 5} more matches in your pool
+                      </p>
+                      <div className="discover-grid-v2">
+                        {filteredMatches.slice(5).map((builder) => (
+                          <BuilderCard
+                            key={builder.id}
+                            builder={builder}
+                            isSaved={savedIds.has(builder.id)}
+                            isPending={pendingIds.has(builder.id)}
+                            isConnected={connectedIds.has(builder.id)}
+                            onPass={() => handlePass(builder.id)}
+                            onConnect={() => handleConnect(builder.id)}
+                            onSave={() => handleSave(builder.id)}
+                            onProposeSprint={() => {
+                              const s = getSuggestedSprint(builder);
+                              openSprintModal(builder, s.type, s.goal);
+                            }}
+                            isConnecting={connectingId === builder.id}
+                            showMatchReasons
+                            sprintCount={sprintCounts.get(builder.id) ?? 0}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sprint-ready Ideas */}
+              {ideaPosts.length > 0 && (
+                <div className="d-ideas-section">
+                  <div className="d-ideas-header">
+                    <span className="d-ideas-label">Sprint-ready Ideas from the Community</span>
+                    <Link href="/feed" className="text-xs text-indigo-400 hover:text-indigo-300">
+                      See all
+                    </Link>
+                  </div>
+                  <div className="d-ideas-grid">
+                    {ideaPosts.map((post) => (
+                      <IdeaCard key={post.id} post={post} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </>
       )}
 
-      {/* Empty State */}
-      {currentBuilders.length === 0 ? (
-        <div className="discover-empty">
-          <div className="discover-empty-icon">
-            <svg className="w-12 h-12 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-          <h2 className="discover-empty-title">
-            {activeTab === "for-you" ? "No matches yet" : "No builders found"}
-          </h2>
-          <p className="discover-empty-text">
-            {activeTab === "for-you"
-              ? !hasBuilderCard
-                ? "Complete your Builder Card to get matched with other builders."
-                : "Try expanding your categories or skills in your profile to find more matches."
-              : "Check back soon as more builders join the community."}
-          </p>
-          {!hasBuilderCard && (
-            <Link href="/profile?tab=builder" className="btn-primary">
-              Complete Builder Card
-            </Link>
-          )}
-        </div>
-      ) : (
+      {/* ── ALL BUILDERS TAB ── */}
+      {activeTab === "all-builders" && (
         <>
-          {/* Grid */}
-          <div className="discover-grid-v2">
-            {currentBuilders.map((builder) => (
-              <BuilderCard
-                key={builder.id}
-                builder={builder}
-                isSaved={savedIds.has(builder.id)}
-                isPending={pendingIds.has(builder.id)}
-                isConnected={connectedIds.has(builder.id)}
-                onPass={() => handlePass(builder.id)}
-                onConnect={() => handleConnect(builder.id)}
-                onSave={() => handleSave(builder.id)}
-                onProposeSprint={() => setSprintModalBuilder(builder)}
-                isConnecting={connectingId === builder.id}
-                showMatchReasons={activeTab === "for-you"}
-                sprintCount={sprintCounts.get(builder.id) ?? 0}
-              />
-            ))}
-          </div>
-
-          {/* Load More (All Builders only) */}
-          {activeTab === "all-builders" && hasMoreBuilders && (
-            <div className="discover-load-more">
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                className="btn-secondary"
-              >
-                Load More Builders
-              </button>
+          {paginatedBuilders.length === 0 ? (
+            <div className="discover-empty">
+              <div className="discover-empty-icon">
+                <svg className="w-12 h-12 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <h2 className="discover-empty-title">No builders found</h2>
+              <p className="discover-empty-text">
+                Check back soon as more builders join the community.
+              </p>
             </div>
+          ) : (
+            <>
+              <div className="discover-grid-v2">
+                {paginatedBuilders.map((builder) => {
+                  const scored: ScoredBuilder = { ...builder, score: 0, matchReasons: [] };
+                  return (
+                    <BuilderCard
+                      key={builder.id}
+                      builder={scored}
+                      isSaved={savedIds.has(builder.id)}
+                      isPending={pendingIds.has(builder.id)}
+                      isConnected={connectedIds.has(builder.id)}
+                      onPass={() => handlePass(builder.id)}
+                      onConnect={() => handleConnect(builder.id)}
+                      onSave={() => handleSave(builder.id)}
+                      onProposeSprint={() => openSprintModal(builder)}
+                      isConnecting={connectingId === builder.id}
+                      showMatchReasons={false}
+                      sprintCount={sprintCounts.get(builder.id) ?? 0}
+                    />
+                  );
+                })}
+              </div>
+
+              {hasMoreBuilders && (
+                <div className="discover-load-more">
+                  <button onClick={() => setPage((p) => p + 1)} className="btn-secondary">
+                    Load More Builders
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -1000,7 +1521,13 @@ export default function DiscoverPage() {
       <ProposeSprintModal
         builder={sprintModalBuilder}
         currentUserId={user.id}
-        onClose={() => setSprintModalBuilder(null)}
+        defaultSprintType={sprintModalDefaultType}
+        defaultGoal={sprintModalDefaultGoal}
+        onClose={() => {
+          setSprintModalBuilder(null);
+          setSprintModalDefaultType(undefined);
+          setSprintModalDefaultGoal(undefined);
+        }}
       />
     )}
     </>

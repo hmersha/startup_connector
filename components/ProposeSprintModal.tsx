@@ -50,10 +50,14 @@ type SprintForm = {
 export default function ProposeSprintModal({
   builder,
   currentUserId,
+  defaultSprintType,
+  defaultGoal,
   onClose,
 }: {
   builder: SlimBuilder;
   currentUserId: string;
+  defaultSprintType?: string;
+  defaultGoal?: string;
   onClose: () => void;
 }) {
   const builderName = builder.username || builder.name || "Builder";
@@ -65,9 +69,11 @@ export default function ProposeSprintModal({
     };
   }, []);
 
+  const validType = SPRINT_TYPES.find((t) => t.value === defaultSprintType)?.value ?? "validation";
+
   const [form, setForm] = useState<SprintForm>({
-    sprint_type: "validation",
-    goal: "",
+    sprint_type: validType,
+    goal: defaultGoal ?? "",
     first_move: "",
     duration_days: 7,
     effort: "Part-time (~5 hrs/wk)",
