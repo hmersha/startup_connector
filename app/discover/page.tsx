@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import AppShell from "@/components/AppShell";
+import PageShell from "@/components/PageShell";
 import ProposeSprintModal from "@/components/ProposeSprintModal";
 
 // === TYPES ===
@@ -818,9 +818,9 @@ export default function DiscoverPage() {
 
   if (loading) {
     return (
-      <AppShell
+      <PageShell
         title="Find teammates for your next venture"
-        rightRail={
+        rail={
           <div className="space-y-5">
             <div className="skeleton h-48 rounded-xl" />
           </div>
@@ -835,13 +835,13 @@ export default function DiscoverPage() {
             <div key={i} className="skeleton h-72 rounded-xl" />
           ))}
         </div>
-      </AppShell>
+      </PageShell>
     );
   }
 
   if (authChecked && !user) {
     return (
-      <AppShell>
+      <PageShell>
         <div className="discover-cta">
           <div className="discover-cta-icon">
             <svg className="w-12 h-12 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -854,7 +854,7 @@ export default function DiscoverPage() {
           </p>
           <Link href="/login" className="btn-primary">Log in to discover</Link>
         </div>
-      </AppShell>
+      </PageShell>
     );
   }
 
@@ -897,9 +897,9 @@ export default function DiscoverPage() {
 
   return (
     <>
-    <AppShell
+    <PageShell
       title="Find teammates for your next venture"
-      rightRail={rightRailContent}
+      rail={rightRailContent}
     >
       {/* Tabs */}
       <div className="discover-tabs">
@@ -994,7 +994,7 @@ export default function DiscoverPage() {
           )}
         </>
       )}
-    </AppShell>
+    </PageShell>
 
     {sprintModalBuilder && user && (
       <ProposeSprintModal

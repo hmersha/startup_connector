@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import AppShell from "@/components/AppShell";
+import PageShell from "@/components/PageShell";
 
 type Member = {
   id: string;
@@ -338,7 +338,7 @@ function MembersContent() {
 
   if (authChecked && !user) {
     return (
-      <AppShell title="Members">
+      <PageShell title="Members">
         <div className="card p-8 text-center max-w-md mx-auto">
           <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
             <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -349,13 +349,13 @@ function MembersContent() {
           <p className="text-slate-400 mb-6">Connect with other CollabSpace members.</p>
           <Link href="/login" className="btn-primary inline-block">Log In</Link>
         </div>
-      </AppShell>
+      </PageShell>
     );
   }
 
   if (loading) {
     return (
-      <AppShell title="Members">
+      <PageShell title="Members">
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="card p-4 flex items-center gap-4">
@@ -367,12 +367,12 @@ function MembersContent() {
             </div>
           ))}
         </div>
-      </AppShell>
+      </PageShell>
     );
   }
 
   return (
-    <AppShell
+    <PageShell
       title="Members"
       subtitle={`${members.length} member${members.length !== 1 ? "s" : ""} in CollabSpace`}
     >
@@ -518,7 +518,7 @@ function MembersContent() {
           })}
         </div>
       )}
-    </AppShell>
+    </PageShell>
   );
 }
 
@@ -526,7 +526,7 @@ function MembersContent() {
 export default function MembersPage() {
   return (
     <Suspense fallback={
-      <AppShell title="Members">
+      <PageShell title="Members">
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="card p-4 flex items-center gap-4">
@@ -538,7 +538,7 @@ export default function MembersPage() {
             </div>
           ))}
         </div>
-      </AppShell>
+      </PageShell>
     }>
       <MembersContent />
     </Suspense>

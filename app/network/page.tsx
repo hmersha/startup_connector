@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import AppShell from "@/components/AppShell";
+import PageShell from "@/components/PageShell";
 
 const SECTIONS = [
   {
@@ -41,7 +41,7 @@ const SECTIONS = [
 
 export default function NetworkPage() {
   return (
-    <AppShell title="Network" subtitle="Your people, messages, and connections.">
+    <PageShell title="Network" subtitle="Your people, messages, and connections.">
       <div className="space-y-3">
         {SECTIONS.map((s) => (
           <Link
@@ -62,6 +62,6 @@ export default function NetworkPage() {
           </Link>
         ))}
       </div>
-    </AppShell>
+    </PageShell>
   );
 }

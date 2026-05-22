@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import AppShell from "@/components/AppShell";
+import PageShell from "@/components/PageShell";
 
 // === CONSTANTS ===
 
@@ -454,7 +454,7 @@ function ProfileContent() {
   // === NOT LOGGED IN ===
   if (authChecked && !user) {
     return (
-      <AppShell title="Profile">
+      <PageShell title="Profile">
         <div className="max-w-md mx-auto">
           <div className="card p-8 text-center">
             <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
@@ -483,14 +483,14 @@ function ProfileContent() {
             </Link>
           </div>
         </div>
-      </AppShell>
+      </PageShell>
     );
   }
 
   // === LOADING ===
   if (loading) {
     return (
-      <AppShell title="Your Profile">
+      <PageShell title="Your Profile">
         <div className="max-w-2xl space-y-6">
           <div className="skeleton h-12 w-full rounded-lg" />
           <div className="card p-6 space-y-4">
@@ -500,13 +500,13 @@ function ProfileContent() {
             <div className="skeleton h-24 w-full" />
           </div>
         </div>
-      </AppShell>
+      </PageShell>
     );
   }
 
   // === MAIN RENDER ===
   return (
-    <AppShell title="Your Profile">
+    <PageShell title="Your Profile">
       <div className="max-w-2xl space-y-6">
 
       {/* Reputation display */}
@@ -998,7 +998,7 @@ function ProfileContent() {
         </form>
       )}
       </div>
-    </AppShell>
+    </PageShell>
   );
 }
 
@@ -1006,7 +1006,7 @@ function ProfileContent() {
 export default function ProfilePage() {
   return (
     <Suspense fallback={
-      <AppShell title="Your Profile">
+      <PageShell title="Your Profile">
         <div className="max-w-2xl space-y-6">
           <div className="skeleton h-12 w-full rounded-lg" />
           <div className="card p-6 space-y-4">
@@ -1016,7 +1016,7 @@ export default function ProfilePage() {
             <div className="skeleton h-24 w-full" />
           </div>
         </div>
-      </AppShell>
+      </PageShell>
     }>
       <ProfileContent />
     </Suspense>
