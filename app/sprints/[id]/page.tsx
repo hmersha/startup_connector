@@ -58,8 +58,8 @@ type SprintUpdate = {
 type SprintArtifact = {
   id: string;
   sprint_id: string;
-  artifact_type: string;
-  content: Record<string, string>;
+  fields: Record<string, string>;
+  updated_by: string;
   updated_at: string;
 };
 
@@ -328,7 +328,7 @@ export default function SprintRoomPage() {
       if (artifactResult.data) {
         const a = artifactResult.data as SprintArtifact;
         setArtifact(a);
-        setArtifactDraft(a.content ?? {});
+        setArtifactDraft(a.fields ?? {});
       }
       if (resourcesResult.data) setResources(resourcesResult.data as SprintResource[]);
 
@@ -441,7 +441,7 @@ export default function SprintRoomPage() {
     if (artifact) {
       const { data, error } = await supabase
         .from("sprint_artifacts")
-        .update({ content: artifactDraft, updated_at: new Date().toISOString() })
+        .update({ fields: artifactDraft, updated_by: currentUserId, updated_at: new Date().toISOString() })
         .eq("id", artifact.id)
         .select("*")
         .single();
@@ -450,7 +450,7 @@ export default function SprintRoomPage() {
     } else {
       const { data, error } = await supabase
         .from("sprint_artifacts")
-        .insert({ sprint_id: sprint.id, artifact_type: sprint.sprint_type, content: artifactDraft })
+        .insert({ sprint_id: sprint.id, fields: artifactDraft, updated_by: currentUserId })
         .select("*")
         .single();
       if (error) saveError = error.message;
@@ -544,7 +544,7 @@ export default function SprintRoomPage() {
   const suggestions = SUGGESTIONS_BY_SPRINT_TYPE[sprint.sprint_type] ?? [];
 
   const proposerFirstMove = sprint.deliverables?.[0]?.replace(/^First move:\s*/i, "") ?? null;
-  const hasArtifactContent = artifact && Object.values(artifact.content).some((v) => v);
+  const hasArtifactContent = artifact && Object.values(artifact.fields).some((v) => v);
 
   const statusLabel: Record<string, string> = {
     proposed: "Proposed", accepted: "Active", active: "Active",
@@ -946,7 +946,7 @@ export default function SprintRoomPage() {
                   <p className="text-sm font-medium text-emerald-400">Connected with {otherName}</p>
                   <p className="text-xs text-slate-500 mt-0.5">You can now message each other directly.</p>
                 </div>
-                <Link href="/network" className="btn-secondary text-sm py-1.5 px-3 flex-shrink-0">
+                <Link href="/messages" className="btn-secondary text-sm py-1.5 px-3 flex-shrink-0">
                   Message
                 </Link>
               </div>
