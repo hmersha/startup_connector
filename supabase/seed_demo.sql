@@ -16,7 +16,7 @@
 -- ============================================================================
 
 -- Fixed seed UUIDs — recognizable, never conflict with real auth UUIDs
--- Format: d3000000-seed-0000-0000-00000000000X
+-- Format: d3000000-5eed-0000-0000-00000000000X
 
 DO $$ BEGIN RAISE NOTICE 'CollabSpace demo seed starting…'; END $$;
 
@@ -34,70 +34,70 @@ INSERT INTO auth.users (
 )
 VALUES
   ('00000000-0000-0000-0000-000000000000',
-   'd3000000-seed-0000-0000-000000000001', 'authenticated', 'authenticated',
+   'd3000000-5eed-0000-0000-000000000001', 'authenticated', 'authenticated',
    'marcus@demo.collabspace.test',
    crypt('seed-marcus-notforlogin', gen_salt('bf')), now(),
    now() - interval '14 days', now() - interval '2 days',
    '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
 
   ('00000000-0000-0000-0000-000000000000',
-   'd3000000-seed-0000-0000-000000000002', 'authenticated', 'authenticated',
+   'd3000000-5eed-0000-0000-000000000002', 'authenticated', 'authenticated',
    'priya@demo.collabspace.test',
    crypt('seed-priya-notforlogin', gen_salt('bf')), now(),
    now() - interval '11 days', now() - interval '1 day',
    '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
 
   ('00000000-0000-0000-0000-000000000000',
-   'd3000000-seed-0000-0000-000000000003', 'authenticated', 'authenticated',
+   'd3000000-5eed-0000-0000-000000000003', 'authenticated', 'authenticated',
    'jordan@demo.collabspace.test',
    crypt('seed-jordan-notforlogin', gen_salt('bf')), now(),
    now() - interval '9 days', now() - interval '3 days',
    '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
 
   ('00000000-0000-0000-0000-000000000000',
-   'd3000000-seed-0000-0000-000000000004', 'authenticated', 'authenticated',
+   'd3000000-5eed-0000-0000-000000000004', 'authenticated', 'authenticated',
    'alexk@demo.collabspace.test',
    crypt('seed-alex-notforlogin', gen_salt('bf')), now(),
    now() - interval '8 days', now() - interval '1 day',
    '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
 
   ('00000000-0000-0000-0000-000000000000',
-   'd3000000-seed-0000-0000-000000000005', 'authenticated', 'authenticated',
+   'd3000000-5eed-0000-0000-000000000005', 'authenticated', 'authenticated',
    'fatima@demo.collabspace.test',
    crypt('seed-fatima-notforlogin', gen_salt('bf')), now(),
    now() - interval '7 days', now() - interval '1 day',
    '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
 
   ('00000000-0000-0000-0000-000000000000',
-   'd3000000-seed-0000-0000-000000000006', 'authenticated', 'authenticated',
+   'd3000000-5eed-0000-0000-000000000006', 'authenticated', 'authenticated',
    'ryan@demo.collabspace.test',
    crypt('seed-ryan-notforlogin', gen_salt('bf')), now(),
    now() - interval '6 days', now() - interval '2 days',
    '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
 
   ('00000000-0000-0000-0000-000000000000',
-   'd3000000-seed-0000-0000-000000000007', 'authenticated', 'authenticated',
+   'd3000000-5eed-0000-0000-000000000007', 'authenticated', 'authenticated',
    'emma@demo.collabspace.test',
    crypt('seed-emma-notforlogin', gen_salt('bf')), now(),
    now() - interval '5 days', now() - interval '1 day',
    '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
 
   ('00000000-0000-0000-0000-000000000000',
-   'd3000000-seed-0000-0000-000000000008', 'authenticated', 'authenticated',
+   'd3000000-5eed-0000-0000-000000000008', 'authenticated', 'authenticated',
    'james@demo.collabspace.test',
    crypt('seed-james-notforlogin', gen_salt('bf')), now(),
    now() - interval '4 days', now() - interval '1 day',
    '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
 
   ('00000000-0000-0000-0000-000000000000',
-   'd3000000-seed-0000-0000-000000000009', 'authenticated', 'authenticated',
+   'd3000000-5eed-0000-0000-000000000009', 'authenticated', 'authenticated',
    'sophia@demo.collabspace.test',
    crypt('seed-sophia-notforlogin', gen_salt('bf')), now(),
    now() - interval '3 days', now() - interval '1 day',
    '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''),
 
   ('00000000-0000-0000-0000-000000000000',
-   'd3000000-seed-0000-0000-00000000000a', 'authenticated', 'authenticated',
+   'd3000000-5eed-0000-0000-00000000000a', 'authenticated', 'authenticated',
    'david@demo.collabspace.test',
    crypt('seed-david-notforlogin', gen_salt('bf')), now(),
    now() - interval '2 days', now() - interval '1 day',
@@ -122,7 +122,7 @@ VALUES
 
   -- 1. Marcus Chen — technical builder looking for product/GTM collaborator
   (
-    'd3000000-seed-0000-0000-000000000001',
+    'd3000000-5eed-0000-0000-000000000001',
     'marcus@demo.collabspace.test',
     'Marcus Chen', 'marcus_chen',
     'Full-stack engineer with 3 years building B2B SaaS. Previously at two early-stage startups. I write clean code, ship fast, and am looking for someone who can own product and go-to-market.',
@@ -142,7 +142,7 @@ VALUES
 
   -- 2. Priya Sharma — product founder looking for technical collaborator
   (
-    'd3000000-seed-0000-0000-000000000002',
+    'd3000000-5eed-0000-0000-000000000002',
     'priya@demo.collabspace.test',
     'Priya Sharma', 'priya_builds',
     'Ex-PM at Coursera. I have done product at scale — now I want to build something from scratch. I can own research, roadmap, and GTM. I need someone who can build.',
@@ -162,7 +162,7 @@ VALUES
 
   -- 3. Jordan Lee — designer looking for startup project
   (
-    'd3000000-seed-0000-0000-000000000003',
+    'd3000000-5eed-0000-0000-000000000003',
     'jordan@demo.collabspace.test',
     'Jordan Lee', 'jordan_designs',
     'Product designer with 4 years at agencies and one early-stage startup. I am good at turning messy ideas into clear interfaces. Looking for a project I can actually own — not just a gig.',
@@ -182,7 +182,7 @@ VALUES
 
   -- 4. Alex Kim — AI project looking for validation
   (
-    'd3000000-seed-0000-0000-000000000004',
+    'd3000000-5eed-0000-0000-000000000004',
     'alexk@demo.collabspace.test',
     'Alex Kim', 'alexkim_dev',
     'Former English teacher, now self-taught developer. I built WriteBot in 3 weeks because I watched my ESL students struggle with feedback tools that felt cold and robotic. I want to test whether this is actually worth building.',
@@ -202,7 +202,7 @@ VALUES
 
   -- 5. Fatima Al-Hassan — fintech idea needing feedback
   (
-    'd3000000-seed-0000-0000-000000000005',
+    'd3000000-5eed-0000-0000-000000000005',
     'fatima@demo.collabspace.test',
     'Fatima Al-Hassan', 'fatima_fintech',
     'MBA student, worked in banking for 2 years before school. I keep seeing Gen Z friends fail at saving not because they don''t want to but because savings apps are built for 40-year-olds. Slice is my answer.',
@@ -222,7 +222,7 @@ VALUES
 
   -- 6. Ryan Martinez — logistics MVP needing scope help
   (
-    'd3000000-seed-0000-0000-000000000006',
+    'd3000000-5eed-0000-0000-000000000006',
     'ryan@demo.collabspace.test',
     'Ryan Martinez', 'ryanm_ops',
     'Spent 5 years in logistics operations for a regional food distributor. I know the pain of last-mile delivery for restaurants because I lived it. Built a basic prototype but need help scoping what v1 actually is.',
@@ -242,7 +242,7 @@ VALUES
 
   -- 7. Emma Wilson — student founder with prototype
   (
-    'd3000000-seed-0000-0000-000000000007',
+    'd3000000-5eed-0000-0000-000000000007',
     'emma@demo.collabspace.test',
     'Emma Wilson', 'emma_builds',
     'CS junior, mental health advocate. Built Mood.log for myself when I noticed I could not explain to my therapist what my week felt like. Now 28 people use it every day and I have no idea how to grow it.',
@@ -262,7 +262,7 @@ VALUES
 
   -- 8. James Park — builder looking for a weekend sprint
   (
-    'd3000000-seed-0000-0000-000000000008',
+    'd3000000-5eed-0000-0000-000000000008',
     'james@demo.collabspace.test',
     'James Park', 'james_ships',
     'I have shipped 6 projects in the last two years. Most went nowhere. Two got real users. I am good at going from idea to something testable in a weekend. If you have a problem and need to move fast, let''s talk.',
@@ -282,7 +282,7 @@ VALUES
 
   -- 9. Sophia Chen — growth founder looking for technical collaborator
   (
-    'd3000000-seed-0000-0000-000000000009',
+    'd3000000-5eed-0000-0000-000000000009',
     'sophia@demo.collabspace.test',
     'Sophia Chen', 'sophia_growth',
     'Ran growth and marketing at two D2C brands (one to $2M ARR). Frustrated that brand analytics tools are either $500/mo enterprise or totally manual. Built a no-code prototype to test the idea. Now I need someone technical to help me go further.',
@@ -302,7 +302,7 @@ VALUES
 
   -- 10. David Osei — hardware/climate builder
   (
-    'd3000000-seed-0000-0000-00000000000a',
+    'd3000000-5eed-0000-0000-00000000000a',
     'david@demo.collabspace.test',
     'David Osei', 'david_hardware',
     'Hardware engineer with a background in IoT. Watching my electricity bill go up while having no idea which appliance is the culprit. Built a plug-in monitor that tells you. Now in 4 apartments. Not sure if it is a product yet.',
@@ -330,50 +330,50 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.posts (id, author_id, title, body, category, created_at, updated_at)
 VALUES
 
-  ('f0000001-seed-0000-0000-000000000001',
-   'd3000000-seed-0000-0000-000000000001',
+  ('f0000001-5eed-0000-0000-000000000001',
+   'd3000000-5eed-0000-0000-000000000001',
    'Why I''m building an expense tracker when 100 already exist',
    'Every expense tracker I tried assumed I knew what my income would be this month. As a freelancer, I don''t. Trackr learns from your actual pattern — feast months, drought months — and builds a budget around reality. Would love feedback from anyone who freelances or knows freelancers.',
    'idea', now() - interval '12 days', now() - interval '12 days'),
 
-  ('f0000001-seed-0000-0000-000000000002',
-   'd3000000-seed-0000-0000-000000000002',
+  ('f0000001-5eed-0000-0000-000000000002',
+   'd3000000-5eed-0000-0000-000000000002',
    'College tutoring is broken — here''s what I found in 200 surveys',
    'I spent 3 weeks talking to college students about how they find help when they''re stuck. 80% said they Google it first. 60% said they''d rather pay a peer than go to office hours. The biggest blocker: they don''t know who is good. TutorLink solves that with verified peer tutors and session ratings. Looking for a technical cofounder to build this with.',
    'idea', now() - interval '10 days', now() - interval '10 days'),
 
-  ('f0000001-seed-0000-0000-000000000003',
-   'd3000000-seed-0000-0000-000000000004',
+  ('f0000001-5eed-0000-0000-000000000003',
+   'd3000000-5eed-0000-0000-000000000004',
    'I shipped my first product in 3 weeks — here''s what surprised me',
    'WriteBot started as a tool I made for one ESL student struggling with paragraph structure. I had no idea 12 people would be using it daily three weeks later. The hardest part wasn''t the code — it was figuring out what feedback actually sounds encouraging vs condescending. Happy to do a feedback sprint with anyone building in edtech or AI.',
    'idea', now() - interval '7 days', now() - interval '7 days'),
 
-  ('f0000001-seed-0000-0000-000000000004',
-   'd3000000-seed-0000-0000-000000000005',
+  ('f0000001-5eed-0000-0000-000000000004',
+   'd3000000-5eed-0000-0000-000000000005',
    'Gen Z doesn''t have a spending problem — they have a saving infrastructure problem',
    'I grew up watching my parents use a savings account to save. I don''t. I spend digitally, I think in transactions, not balances. Slice rounds up every payment automatically and puts the difference into an emergency fund. 89 people signed up in week one with no ads. I''m looking for someone who can help me scope what v1 should actually be.',
    'idea', now() - interval '6 days', now() - interval '6 days'),
 
-  ('f0000001-seed-0000-0000-000000000005',
-   'd3000000-seed-0000-0000-000000000006',
+  ('f0000001-5eed-0000-0000-000000000005',
+   'd3000000-5eed-0000-0000-000000000006',
    '$4k in GMV and I''m routing orders over text message — time to fix this',
    'LastLeg is running. Two restaurants are using it for catering orders. We moved $4k last month. The problem is everything is manual — I take orders over text, coordinate drivers over WhatsApp, and track everything in a spreadsheet. I need to scope what a real v1 looks like before this falls apart. Looking for a builder who gets operations.',
    'idea', now() - interval '5 days', now() - interval '5 days'),
 
-  ('f0000001-seed-0000-0000-000000000006',
-   'd3000000-seed-0000-0000-000000000007',
+  ('f0000001-5eed-0000-0000-000000000006',
+   'd3000000-5eed-0000-0000-000000000007',
    'I built a journaling app for my therapist appointments and 28 people started using it',
    'Mood.log started because I could never answer "how was your week?" in therapy. I started logging daily and realized patterns I''d never noticed. I put it on TestFlight expecting to share it with 3 friends. Now 28 people use it every day and I have no idea how it spread. Looking for help thinking about what comes next.',
    'idea', now() - interval '4 days', now() - interval '4 days'),
 
-  ('f0000001-seed-0000-0000-000000000007',
-   'd3000000-seed-0000-0000-000000000009',
+  ('f0000001-5eed-0000-0000-000000000007',
+   'd3000000-5eed-0000-0000-000000000009',
    'My no-code brand analytics tool has paying customers. Now what?',
    'I built Pulse in Retool + a Google Sheet backend to prove the concept. Three D2C brands are paying $100/mo. They keep asking for things I can''t build in no-code. I''m at the point where I either find a technical cofounder or give up. If you''re a developer who has ever worked in e-commerce or D2C, I''d love to talk.',
    'idea', now() - interval '2 days', now() - interval '2 days'),
 
-  ('f0000001-seed-0000-0000-000000000008',
-   'd3000000-seed-0000-0000-00000000000a',
+  ('f0000001-5eed-0000-0000-000000000008',
+   'd3000000-5eed-0000-0000-00000000000a',
    'I hand-assembled 10 energy monitors and put them in apartments — here''s what I learned',
    'Watt is in 4 households right now. The average person checks the app twice a day. The thing they look at most is the "daily cost" number — not the watts, not the kilowatt-hours, just "this fridge costs me $1.20/day." That surprised me. Now I need to figure out whether this is a product or a toy. Would love to sprint with anyone who has sold hardware before.',
    'idea', now() - interval '1 day', now() - interval '1 day')
