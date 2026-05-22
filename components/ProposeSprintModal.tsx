@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase/client";
 
 export type SlimBuilder = {
@@ -12,18 +12,18 @@ export type SlimBuilder = {
 const SPRINT_TYPES = [
   {
     value: "validation",
-    label: "Idea Sprint",
-    description: "Validate whether the problem is worth solving",
+    label: "Feedback Sprint",
+    description: "Give or get feedback on an idea, prototype, or pitch",
+  },
+  {
+    value: "mvp_scope",
+    label: "MVP Scope Sprint",
+    description: "Turn a rough idea into a clear first version",
   },
   {
     value: "build",
-    label: "Build Sprint",
-    description: "Ship something specific together",
-  },
-  {
-    value: "cofounder_fit",
-    label: "Chemistry Sprint",
-    description: "Test working styles before committing",
+    label: "Build / Validation Sprint",
+    description: "Build or test one small thing to learn if it's worth continuing",
   },
 ];
 
@@ -57,6 +57,13 @@ export default function ProposeSprintModal({
   onClose: () => void;
 }) {
   const builderName = builder.username || builder.name || "Builder";
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    };
+  }, []);
 
   const [form, setForm] = useState<SprintForm>({
     sprint_type: "validation",
@@ -100,7 +107,7 @@ export default function ProposeSprintModal({
     }
 
     setSuccess(true);
-    setTimeout(() => onClose(), 2000);
+    closeTimeoutRef.current = setTimeout(() => onClose(), 2000);
     setSubmitting(false);
   }
 

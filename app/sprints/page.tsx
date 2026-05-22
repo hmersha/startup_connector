@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import AppShell from "@/components/AppShell";
+import PageShell from "@/components/PageShell";
 
 type SprintUser = { id: string; name: string | null; username: string | null };
 
@@ -28,9 +28,9 @@ type Sprint = {
 };
 
 const SPRINT_TYPE_LABELS: Record<string, string> = {
-  validation: "Idea Sprint",
+  validation: "Feedback Sprint",
   mvp_scope: "MVP Scope Sprint",
-  build: "Build Sprint",
+  build: "Build / Validation Sprint",
   gtm: "GTM Sprint",
   cofounder_fit: "Chemistry Sprint",
 };
@@ -191,24 +191,24 @@ export default function SprintsPage() {
 
   if (!authChecked || loading) {
     return (
-      <AppShell title="Sprints" subtitle="Test collaboration before committing.">
+      <PageShell title="Sprints" subtitle="Test collaboration before committing.">
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="skeleton h-36 rounded-xl" />
           ))}
         </div>
-      </AppShell>
+      </PageShell>
     );
   }
 
   if (!user) {
     return (
-      <AppShell title="Sprints">
+      <PageShell title="Sprints">
         <div className="card p-8 text-center max-w-md mx-auto">
           <p className="text-slate-400 mb-4">Log in to view your sprints.</p>
           <Link href="/login" className="btn-primary inline-block">Log In</Link>
         </div>
-      </AppShell>
+      </PageShell>
     );
   }
 
@@ -220,7 +220,7 @@ export default function SprintsPage() {
   const currentSprints = tabSprints[activeTab];
 
   return (
-    <AppShell
+    <PageShell
       title="Sprints"
       subtitle="Test collaboration before committing."
     >
@@ -257,15 +257,20 @@ export default function SprintsPage() {
           <h2 className="discover-empty-title">No sprints yet</h2>
           <p className="discover-empty-text">
             {activeTab === "proposed"
-              ? "Find a builder on Discover and propose a sprint. A sprint is a short, low-pressure way to test collaboration before committing to anything."
+              ? "Find a builder or idea on Discover and propose a small sprint."
               : activeTab === "active"
               ? "No active sprints. Accept a proposed sprint or start one from Discover."
               : "Completed sprints will appear here once you finish one."}
           </p>
           {activeTab === "proposed" && (
-            <Link href="/discover" className="btn-primary mt-4 inline-block">
-              Go to Discover
-            </Link>
+            <>
+              <p className="text-xs text-slate-600 mt-2">
+                A sprint is a short, low-pressure way to test collaboration before connecting.
+              </p>
+              <Link href="/discover" className="btn-primary mt-4 inline-block">
+                Go to Discover
+              </Link>
+            </>
           )}
         </div>
       ) : (
@@ -281,6 +286,6 @@ export default function SprintsPage() {
           ))}
         </div>
       )}
-    </AppShell>
+    </PageShell>
   );
 }

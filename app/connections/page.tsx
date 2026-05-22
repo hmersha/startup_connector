@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import AppShell from "@/components/AppShell";
+import PageShell from "@/components/PageShell";
 
 type ConnectionUser = {
   id: string;
@@ -41,6 +41,7 @@ export default function ConnectionsPage() {
 
   const [processing, setProcessing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sprintedWith, setSprintedWith] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function loadConnections() {
@@ -110,6 +111,23 @@ export default function ConnectionsPage() {
       setIncomingRequests(incoming);
       setOutgoingRequests(outgoing);
       setConnectedUsers(connected);
+
+      // Check which incoming requesters have completed a sprint with current user
+      if (incoming.length > 0) {
+        const requesterIds = incoming.map((c) => c.requester_id);
+        const { data: sprintData } = await supabase
+          .from("sprints")
+          .select("proposer_id, recipient_id")
+          .eq("status", "completed")
+          .or(`proposer_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`);
+        const sprintedSet = new Set<string>();
+        sprintData?.forEach((s) => {
+          const otherId = s.proposer_id === currentUser.id ? s.recipient_id : s.proposer_id;
+          if (requesterIds.includes(otherId)) sprintedSet.add(otherId);
+        });
+        setSprintedWith(sprintedSet);
+      }
+
       setLoading(false);
     }
 
@@ -253,7 +271,7 @@ export default function ConnectionsPage() {
 
   if (authChecked && !user) {
     return (
-      <AppShell title="Connections">
+      <PageShell title="Connections">
         <div className="card p-8 text-center max-w-md mx-auto">
           <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
             <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -264,13 +282,13 @@ export default function ConnectionsPage() {
           <p className="text-slate-400 mb-6">Manage your network and connection requests.</p>
           <Link href="/login" className="btn-primary inline-block">Log In</Link>
         </div>
-      </AppShell>
+      </PageShell>
     );
   }
 
   if (loading) {
     return (
-      <AppShell title="Connections" subtitle="Manage your network and connection requests">
+      <PageShell title="Connections" subtitle="Manage your network and connection requests">
         <div className="flex gap-2 mb-6">
           <div className="skeleton h-10 w-28 rounded-lg" />
           <div className="skeleton h-10 w-28 rounded-lg" />
@@ -287,7 +305,7 @@ export default function ConnectionsPage() {
             </div>
           ))}
         </div>
-      </AppShell>
+      </PageShell>
     );
   }
 
@@ -298,7 +316,7 @@ export default function ConnectionsPage() {
   ];
 
   return (
-    <AppShell title="Connections" subtitle="Manage your network and connection requests">
+    <PageShell title="Connections" subtitle="Manage your network and connection requests">
       {/* Error Toast */}
       {error && (
         <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 mb-6">
@@ -367,6 +385,11 @@ export default function ConnectionsPage() {
                       <span className="font-medium text-slate-100">{otherUser.username ?? otherUser.name}</span>
                       <span className="rep-badge text-xs">{otherUser.reputation}</span>
                     </div>
+                    {sprintedWith.has(conn.requester_id) && (
+                      <p className="text-xs text-teal-400 mt-0.5">
+                        Wants to connect after your sprint
+                      </p>
+                    )}
                     {(otherUser.school || otherUser.major) && (
                       <p className="text-sm text-slate-500 truncate">
                         {[otherUser.major, otherUser.school].filter(Boolean).join(" · ")}
@@ -507,6 +530,6 @@ export default function ConnectionsPage() {
           )}
         </div>
       )}
-    </AppShell>
+    </PageShell>
   );
 }

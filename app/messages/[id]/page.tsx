@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef, use } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -25,12 +26,9 @@ async function updatePresence(userId: string) {
     .eq("id", userId);
 }
 
-export default function ConversationPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+export default function ConversationPage() {
+  const params = useParams<{ id: string }>();
+  const id = params.id;
   const [user, setUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [loading, setLoading] = useState(true);

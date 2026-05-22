@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import AppShell from "@/components/AppShell";
+import PageShell from "@/components/PageShell";
 
 type Conversation = {
   id: string;
@@ -63,7 +63,8 @@ export default function MessagesPage() {
         .from("messages")
         .select("conversation_id, body, created_at, sender_id")
         .in("conversation_id", convoIds)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(500);
 
       const convoMap = new Map<string, Conversation>();
 
@@ -138,7 +139,7 @@ export default function MessagesPage() {
 
   if (authChecked && !user) {
     return (
-      <AppShell title="Messages">
+      <PageShell title="Messages">
         <div className="card p-8 text-center max-w-md mx-auto">
           <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
             <svg
@@ -165,13 +166,13 @@ export default function MessagesPage() {
             Log In
           </Link>
         </div>
-      </AppShell>
+      </PageShell>
     );
   }
 
   if (loading) {
     return (
-      <AppShell title="Messages">
+      <PageShell title="Messages">
         <div className="card divide-y divide-slate-700/50">
           {[1, 2, 3].map((i) => (
             <div key={i} className="p-4 flex items-center gap-4">
@@ -183,12 +184,12 @@ export default function MessagesPage() {
             </div>
           ))}
         </div>
-      </AppShell>
+      </PageShell>
     );
   }
 
   return (
-    <AppShell title="Messages">
+    <PageShell title="Messages">
       <div className="flex items-center justify-end -mt-4 mb-6">
         <Link
           href="/members"
@@ -219,7 +220,7 @@ export default function MessagesPage() {
             No messages yet
           </h2>
           <p className="text-slate-400 mb-6">
-            Messaging unlocks after you connect. Start with a sprint on Discover to test collaboration first — then connect if it goes well.
+            Messages unlock after you connect. Start with a sprint to test collaboration first.
           </p>
           <Link href="/discover" className="btn-primary inline-block">
             Go to Discover
@@ -286,6 +287,6 @@ export default function MessagesPage() {
           ))}
         </div>
       )}
-    </AppShell>
+    </PageShell>
   );
 }
