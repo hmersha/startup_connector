@@ -180,45 +180,47 @@ export default function ConnectionsPage() {
     setProcessing(null);
   }
 
-  async function handleCancelRequest(connectionId: string) {
-    setProcessing(connectionId);
+  async function handleCancelRequest(conn: Connection) {
+    setProcessing(conn.requester_id + conn.addressee_id);
     setError(null);
 
     const { error: deleteError } = await supabase
       .from("connections")
       .delete()
-      .eq("id", connectionId);
+      .eq("requester_id", conn.requester_id)
+      .eq("addressee_id", conn.addressee_id);
 
     if (deleteError) {
-      console.error("Error canceling request:", deleteError);
       setError(deleteError.message || "Failed to cancel request");
       setProcessing(null);
       return;
     }
 
-    // Remove from outgoing
-    setOutgoingRequests((prev) => prev.filter((r) => r.id !== connectionId));
+    setOutgoingRequests((prev) =>
+      prev.filter((r) => !(r.requester_id === conn.requester_id && r.addressee_id === conn.addressee_id))
+    );
     setProcessing(null);
   }
 
-  async function handleRemoveConnection(connectionId: string) {
-    setProcessing(connectionId);
+  async function handleRemoveConnection(conn: Connection) {
+    setProcessing(conn.requester_id + conn.addressee_id);
     setError(null);
 
     const { error: deleteError } = await supabase
       .from("connections")
       .delete()
-      .eq("id", connectionId);
+      .eq("requester_id", conn.requester_id)
+      .eq("addressee_id", conn.addressee_id);
 
     if (deleteError) {
-      console.error("Error removing connection:", deleteError);
       setError(deleteError.message || "Failed to remove connection");
       setProcessing(null);
       return;
     }
 
-    // Remove from connected
-    setConnectedUsers((prev) => prev.filter((r) => r.id !== connectionId));
+    setConnectedUsers((prev) =>
+      prev.filter((r) => !(r.requester_id === conn.requester_id && r.addressee_id === conn.addressee_id))
+    );
     setProcessing(null);
   }
 
@@ -458,11 +460,11 @@ export default function ConnectionsPage() {
                     )}
                   </div>
                   <button
-                    onClick={() => handleCancelRequest(conn.id)}
-                    disabled={processing === conn.id}
+                    onClick={() => handleCancelRequest(conn)}
+                    disabled={processing === conn.requester_id + conn.addressee_id}
                     className="btn-secondary text-sm px-4 py-2 flex-shrink-0"
                   >
-                    {processing === conn.id ? "..." : "Cancel"}
+                    {processing === conn.requester_id + conn.addressee_id ? "..." : "Cancel"}
                   </button>
                 </div>
               );
@@ -517,11 +519,11 @@ export default function ConnectionsPage() {
                       Message
                     </button>
                     <button
-                      onClick={() => handleRemoveConnection(conn.id)}
-                      disabled={processing === conn.id}
+                      onClick={() => handleRemoveConnection(conn)}
+                      disabled={processing === conn.requester_id + conn.addressee_id}
                       className="btn-secondary text-sm px-4 py-2 text-red-400 hover:text-red-300"
                     >
-                      {processing === conn.id ? "..." : "Remove"}
+                      {processing === conn.requester_id + conn.addressee_id ? "..." : "Remove"}
                     </button>
                   </div>
                 </div>

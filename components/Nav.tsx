@@ -8,6 +8,7 @@ import type { User } from "@supabase/supabase-js";
 
 const NAV_ITEMS = [
   { href: "/discover", label: "Discover", match: ["/discover"] },
+  { href: "/feed",     label: "Feed",     match: ["/feed", "/posts"] },
   { href: "/sprints",  label: "Sprints",  match: ["/sprints"] },
   {
     href: "/network",
